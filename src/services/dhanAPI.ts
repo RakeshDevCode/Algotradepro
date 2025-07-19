@@ -81,7 +81,7 @@ class DhanAPIService {
       }
       return [];
     } catch (error) {
-      console.error('Error fetching holdings:', error);
+      console.warn('Holdings API unavailable, using mock data:', error);
       // Return mock data if API fails
       return this.getMockPositions();
     }
