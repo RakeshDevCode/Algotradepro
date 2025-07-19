@@ -16,7 +16,7 @@ const MarketData: React.FC = () => {
         console.error('Error fetching market data:', error);
       } finally {
         setLoading(false);
-      }
+      } 
     };
 
     fetchMarketData();

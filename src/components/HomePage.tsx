@@ -32,6 +32,10 @@ const HomePage: React.FC<HomePageProps> = ({ onGetStarted, onShowAuth }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white overflow-hidden">
+      <button  onClick={onShowAuth} className="p-2 px-4  rounded-lg text-white  hover:underline text-xl  font-bold mt-8 ml-[70%] bg-blue-500"
+>
+  Login
+</button>
       {/* Hero Section */}
       <div className="relative">
         {/* Animated background elements */}
@@ -53,19 +57,27 @@ const HomePage: React.FC<HomePageProps> = ({ onGetStarted, onShowAuth }) => {
             </h1>
             
             {/* Tagline */}
-            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto animate-fade-in-up animation-delay-500">
+            <p className="text-xl md:text-2xl text-gray-300 mb-4 max-w-3xl mx-auto animate-fade-in-up animation-delay-500">
               Unleash the power of algorithmic trading with advanced strategies, 
               real-time market data, and intelligent automation
             </p>
             
-            {/* Subtitle */}
-            <p className="text-lg text-gray-400 mb-12 animate-fade-in-up animation-delay-1000">
-              Professional-grade trading platform powered by Dhan API
-            </p>
+            {/* Subtitle */}<p>            
+            <a className="text-lg  mb-8 p-1 md:p-2 text-gray-100 bg-gradient-to-r from-yellow-600 to-purple-600 rounded-full hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-300"
+  href="https://github.com/rakeshdevcode" 
+  target="_blank" 
+  rel="noopener noreferrer"
+>
+ Professional-grade trading platform powered by rakeshdevcode
+</a>    </p>
+
+
+            
+
             
             {/* CTA Button */}
             <div className="animate-fade-in-up animation-delay-1500">
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center my-12">
                 <button
                   onClick={onShowAuth}
                   className="group relative inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-full hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-300 shadow-2xl hover:shadow-blue-500/25"
