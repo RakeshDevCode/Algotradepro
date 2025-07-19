@@ -9,8 +9,8 @@ const WatchlistManager: React.FC = () => {
       id: '1',
       name: 'My Favorites',
       items: [
-        { symbol: 'RELIANCE', name: 'Reliance Industries Ltd', price: 2456.75, change: 23.45, changePercent: 0.96 },
-        { symbol: 'TCS', name: 'Tata Consultancy Services', price: 3789.20, change: -45.60, changePercent: -1.19 },
+        { symbol: 'RELIANCE', name: 'Reliance Industries Ltd', price: 1476.00, change: -0.40, changePercent: -0.03 },
+        { symbol: 'TCS', name: 'Tata Consultancy Services', price: 3189.60, change: -19.60, changePercent: -0.61 },
       ],
       createdAt: new Date()
     },
@@ -18,8 +18,8 @@ const WatchlistManager: React.FC = () => {
       id: '2',
       name: 'Banking Stocks',
       items: [
-        { symbol: 'HDFC', name: 'HDFC Bank Limited', price: 1678.45, change: -12.85, changePercent: -0.76 },
-        { symbol: 'ICICIBANK', name: 'ICICI Bank Limited', price: 945.30, change: 8.75, changePercent: 0.94 },
+        { symbol: 'HDFCBANK', name: 'HDFC Bank Limited', price: 1956.00, change: -30.90, changePercent: -1.56 },
+        { symbol: 'ICICIBANK', name: 'ICICI Bank Limited', price: 1426.70, change: 8.00, changePercent: 0.56 },
       ],
       createdAt: new Date()
     }

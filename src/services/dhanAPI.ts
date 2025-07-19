@@ -1,4 +1,4 @@
-import { Stock, Order, Position, ApiCredentials } from '../types';
+import { Stock, Order, Position, ApiCredentials, OrderBook, WatchlistItem } from '../types';
 import { symbolMappingService, POPULAR_STOCKS } from './symbolMapping';
 
 class DhanAPIService {
@@ -117,23 +117,23 @@ class DhanAPIService {
       return this.getMockMarketDataForSymbols(popularSymbols);
     } catch (error) {
       console.error('Error fetching market data:', error);
-      return this.getMockMarketDataForSymbols(['RELIANCE', 'TCS', 'HDFCBANK', 'INFY']);
+      return this.getMockMarketDataForSymbols(['', 'TCS', 'HDFCBANK', 'INFY']);
     }
   }
 
   private getMockMarketDataForSymbols(symbols: string[]): Stock[] {
     // Base price data for popular stocks
     const basePrices: Record<string, any> = {
-      'RELIANCE': { price: 2456.75, name: 'Reliance Industries' },
-      'TCS': { price: 3789.20, name: 'Tata Consultancy Services' },
-      'HDFCBANK': { price: 1678.45, name: 'HDFC Bank' },
+      '': { price: 1476.00, name: ' Industries' },
+      'TCS': { price: 3189.60, name: 'Tata Consultancy Services' },
+      'HDFCBANK': { price: 1956.00, name: 'HDFC Bank' },
       'INFY': { price: 1456.85, name: 'Infosys' },
-      'ICICIBANK': { price: 945.30, name: 'ICICI Bank' },
-      'BHARTIARTL': { price: 789.60, name: 'Bharti Airtel' },
-      'ITC': { price: 234.50, name: 'ITC' },
-      'SBIN': { price: 567.80, name: 'State Bank of India' },
-      'LT': { price: 2345.80, name: 'Larsen & Toubro' },
-      'KOTAKBANK': { price: 1789.45, name: 'Kotak Mahindra Bank' }
+      'ICICIBANK': { price: 1426.70, name: 'ICICI Bank' },
+      'BHARTIARTL': { price: 1902.00, name: 'Bharti Airtel' },
+      'ITC': { price: 422.00, name: 'ITC' },
+      'SBIN': { price: 823.00, name: 'State Bank of India' },
+      'LT': { price: 3468.70, name: 'Larsen & Toubro' },
+      'KOTAKBANK': { price: 2132.00, name: 'Kotak Mahindra Bank' }
     };
     
     return symbols.map(symbol => {
@@ -280,22 +280,7 @@ class DhanAPIService {
 
   private getMockPositions(): Position[] {
     return [
-      {
-        symbol: 'RELIANCE',
-        quantity: 100,
-        avgPrice: 2400.00,
-        currentPrice: 2456.75,
-        pnl: 5675.00,
-        pnlPercent: 2.36
-      },
-      {
-        symbol: 'TCS',
-        quantity: 50,
-        avgPrice: 3800.00,
-        currentPrice: 3789.20,
-        pnl: -540.00,
-        pnlPercent: -0.28
-      }
+      
     ];
   }
 
@@ -338,20 +323,20 @@ class DhanAPIService {
     return [
       {
         id: '1',
-        symbol: 'RELIANCE',
+        symbol: '',
         side: 'BUY',
         quantity: 100,
-        price: 2400.00,
+        price: 1476.00,
         type: 'LIMIT',
         status: 'FILLED',
-        timestamp: new Date(Date.now() - 3600000)
+        timestamp: new Date(Date.now())
       },
       {
         id: '2',
         symbol: 'TCS',
         side: 'SELL',
         quantity: 25,
-        price: 3800.00,
+        price: 3200.00,
         type: 'LIMIT',
         status: 'PENDING',
         timestamp: new Date()
@@ -371,7 +356,7 @@ class DhanAPIService {
   }
 
   private getMockOrderBook(symbol: string): OrderBook {
-    const basePrice = 2456.75; // You could fetch current price here
+    const basePrice = 0.00; // You could fetch current price here
     const spread = 0.25;
     
     return {
