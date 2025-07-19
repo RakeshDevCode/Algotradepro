@@ -74,3 +74,16 @@ export interface Watchlist {
   items: WatchlistItem[];
   createdAt: Date;
 }
+
+export interface OrderBookEntry {
+  price: number;
+  quantity: number;
+  orders: number;
+}
+
+export interface OrderBook {
+  symbol: string;
+  bids: OrderBookEntry[];
+  asks: OrderBookEntry[];
+  lastUpdated: Date;
+}

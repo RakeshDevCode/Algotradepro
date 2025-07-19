@@ -1,4 +1,5 @@
 import { Stock, Order, Position, ApiCredentials } from '../types';
+import { symbolMappingService, POPULAR_STOCKS } from './symbolMapping';
 
 class DhanAPIService {
   private baseURL = '/api';
@@ -111,79 +112,64 @@ class DhanAPIService {
 
   async getMarketData(): Promise<Stock[]> {
     try {
-      // For now, return mock data as Dhan doesn't have a direct market data endpoint
-      // You would typically use a separate market data provider
-      return this.getMockMarketData();
+      // Get only popular stocks instead of all 50+ stocks
+      const popularSymbols = symbolMappingService.getPopularSymbols().slice(0, 8); // Show top 8
+      return this.getMockMarketDataForSymbols(popularSymbols);
     } catch (error) {
       console.error('Error fetching market data:', error);
-      return this.getMockMarketData();
+      return this.getMockMarketDataForSymbols(['RELIANCE', 'TCS', 'HDFCBANK', 'INFY']);
     }
   }
 
-  private getMockMarketData(): Stock[] {
-    // Generate dynamic mock data with slight variations
-    const baseData = [
-      {
-        symbol: 'RELIANCE',
-        name: 'Reliance Industries Ltd',
-        price: 2456.75 + (Math.random() - 0.5) * 20,
-        change: 23.45 + (Math.random() - 0.5) * 10,
-        changePercent: 0.96 + (Math.random() - 0.5) * 0.5,
-        volume: 1234567,
-        high: 2478.90 + (Math.random() - 0.5) * 15,
-        low: 2434.20 + (Math.random() - 0.5) * 15,
-        open: 2445.30 + (Math.random() - 0.5) * 10
-      },
-      {
-        symbol: 'TCS',
-        name: 'Tata Consultancy Services',
-        price: 3789.20 + (Math.random() - 0.5) * 30,
-        change: -45.60 + (Math.random() - 0.5) * 20,
-        changePercent: -1.19 + (Math.random() - 0.5) * 0.8,
-        volume: 987654,
-        high: 3834.80 + (Math.random() - 0.5) * 25,
-        low: 3765.10 + (Math.random() - 0.5) * 25,
-        open: 3820.50 + (Math.random() - 0.5) * 20
-      },
-      {
-        symbol: 'INFY',
-        name: 'Infosys Limited',
-        price: 1456.85 + (Math.random() - 0.5) * 15,
-        change: 15.30 + (Math.random() - 0.5) * 8,
-        changePercent: 1.06 + (Math.random() - 0.5) * 0.6,
-        volume: 2345678,
-        high: 1467.20 + (Math.random() - 0.5) * 12,
-        low: 1441.50 + (Math.random() - 0.5) * 12,
-        open: 1448.75 + (Math.random() - 0.5) * 10
-      },
-      {
-        symbol: 'HDFC',
-        name: 'HDFC Bank Limited',
-        price: 1678.45 + (Math.random() - 0.5) * 18,
-        change: -12.85 + (Math.random() - 0.5) * 10,
-        changePercent: -0.76 + (Math.random() - 0.5) * 0.5,
-        volume: 1567890,
-        high: 1692.30 + (Math.random() - 0.5) * 15,
-        low: 1665.20 + (Math.random() - 0.5) * 15,
-        open: 1685.90 + (Math.random() - 0.5) * 12
-      }
-    ];
+  private getMockMarketDataForSymbols(symbols: string[]): Stock[] {
+    // Base price data for popular stocks
+    const basePrices: Record<string, any> = {
+      'RELIANCE': { price: 2456.75, name: 'Reliance Industries' },
+      'TCS': { price: 3789.20, name: 'Tata Consultancy Services' },
+      'HDFCBANK': { price: 1678.45, name: 'HDFC Bank' },
+      'INFY': { price: 1456.85, name: 'Infosys' },
+      'ICICIBANK': { price: 945.30, name: 'ICICI Bank' },
+      'BHARTIARTL': { price: 789.60, name: 'Bharti Airtel' },
+      'ITC': { price: 234.50, name: 'ITC' },
+      'SBIN': { price: 567.80, name: 'State Bank of India' },
+      'LT': { price: 2345.80, name: 'Larsen & Toubro' },
+      'KOTAKBANK': { price: 1789.45, name: 'Kotak Mahindra Bank' }
+    };
     
-    return baseData.map(stock => ({
-      ...stock,
-      price: Math.round(stock.price * 100) / 100,
-      change: Math.round(stock.change * 100) / 100,
-      changePercent: Math.round(stock.changePercent * 100) / 100,
-      high: Math.round(stock.high * 100) / 100,
-      low: Math.round(stock.low * 100) / 100,
-      open: Math.round(stock.open * 100) / 100
-    }));
+    return symbols.map(symbol => {
+      const baseData = basePrices[symbol] || { price: 1000 + Math.random() * 2000, name: symbol };
+      const securityInfo = symbolMappingService.getSecurityInfo(symbol);
+      
+      // Generate dynamic variations
+      const priceVariation = (Math.random() - 0.5) * (baseData.price * 0.02); // ±2% variation
+      const currentPrice = baseData.price + priceVariation;
+      const change = priceVariation + (Math.random() - 0.5) * 20;
+      const changePercent = (change / baseData.price) * 100;
+      
+      return {
+        symbol,
+        name: securityInfo?.customSymbol || baseData.name,
+        price: Math.round(currentPrice * 100) / 100,
+        change: Math.round(change * 100) / 100,
+        changePercent: Math.round(changePercent * 100) / 100,
+        volume: Math.floor(Math.random() * 2000000) + 500000,
+        high: Math.round((currentPrice + Math.abs(change) * 0.5) * 100) / 100,
+        low: Math.round((currentPrice - Math.abs(change) * 0.5) * 100) / 100,
+        open: Math.round((baseData.price + (Math.random() - 0.5) * 10) * 100) / 100
+      };
+    });
   }
 
   async placeOrder(order: Omit<Order, 'id' | 'timestamp' | 'status'>): Promise<Order> {
     try {
       if (!this.credentials?.apiKey || !this.credentials?.clientId) {
         throw new Error('API credentials not configured');
+      }
+
+      // Get security ID for the symbol
+      const securityId = symbolMappingService.getSecurityId(order.symbol);
+      if (!securityId) {
+        throw new Error(`Security ID not found for symbol: ${order.symbol}`);
       }
 
       const orderPayload = {
@@ -195,7 +181,7 @@ class DhanAPIService {
         orderType: order.type,
         validity: "DAY",
         tradingSymbol: order.symbol,
-        securityId: order.symbol, // You might need to map symbol to security ID
+        securityId: securityId.toString(),
         quantity: order.quantity,
         disclosedQuantity: 0,
         price: order.price,
@@ -419,23 +405,16 @@ class DhanAPIService {
   }
 
   private getMockSearchResults(query: string): WatchlistItem[] {
-    const allSymbols = [
-      { symbol: 'RELIANCE', name: 'Reliance Industries Ltd', price: 2456.75, change: 23.45, changePercent: 0.96 },
-      { symbol: 'TCS', name: 'Tata Consultancy Services', price: 3789.20, change: -45.60, changePercent: -1.19 },
-      { symbol: 'INFY', name: 'Infosys Limited', price: 1456.85, change: 15.30, changePercent: 1.06 },
-      { symbol: 'HDFC', name: 'HDFC Bank Limited', price: 1678.45, change: -12.85, changePercent: -0.76 },
-      { symbol: 'ICICIBANK', name: 'ICICI Bank Limited', price: 945.30, change: 8.75, changePercent: 0.94 },
-      { symbol: 'SBIN', name: 'State Bank of India', price: 567.80, change: -3.20, changePercent: -0.56 },
-      { symbol: 'HDFCBANK', name: 'HDFC Bank Limited', price: 1678.45, change: -12.85, changePercent: -0.76 },
-      { symbol: 'BHARTIARTL', name: 'Bharti Airtel Limited', price: 789.60, change: 12.40, changePercent: 1.60 },
-      { symbol: 'ITC', name: 'ITC Limited', price: 234.50, change: 2.30, changePercent: 0.99 },
-      { symbol: 'LT', name: 'Larsen & Toubro Limited', price: 2345.80, change: -18.90, changePercent: -0.80 },
-    ];
+    // Use symbol mapping service to search
+    const searchResults = symbolMappingService.searchSymbols(query, 20);
     
-    return allSymbols.filter(item => 
-      item.symbol.toLowerCase().includes(query.toLowerCase()) ||
-      item.name.toLowerCase().includes(query.toLowerCase())
-    );
+    return searchResults.map(info => ({
+      symbol: info.tradingSymbol,
+      name: info.customSymbol,
+      price: 1000 + Math.random() * 2000, // Mock price
+      change: (Math.random() - 0.5) * 50,
+      changePercent: (Math.random() - 0.5) * 5
+    }));
   }
 }
 
