@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen }) => {
       >
         <div className="p-6 border-b border-gray-700">
           <h1 className="text-xl font-bold text-blue-400">AlgoTrade Pro</h1>
-          <p className="text-sm text-gray-400 mt-1">Powered by Dhan API</p>
+          <p className="text-sm text-gray-400 mt-1">Powered by @rakeshdevcode</p>
         </div>
 
         {/* Navigation Links */}
@@ -78,7 +78,9 @@ const Sidebar: React.FC<SidebarProps> = ({ sidebarOpen, setSidebarOpen }) => {
           <div className="flex justify-between mt-1">
             <span>API:</span>
             <span className="text-blue-400">Dhan v2</span>
+           
           </div>
+
         </div>
       </nav>
     </>

@@ -34,7 +34,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <h1 className="text-xl font-bold text-blue-400">AlgoTrade Pro</h1>
-              <p className="text-xs text-gray-400">Powered by Dhan API</p>
+              <p className="text-xs text-gray-400">Powered by @rakeshdevcode</p>
             </div>
           </div>
           
