@@ -1,7 +1,7 @@
 import { Stock, Order, Position, ApiCredentials } from '../types';
 
 class DhanAPIService {
-  private baseURL = 'https://api.dhan.co';
+  private baseURL = '/api';
   private credentials: ApiCredentials | null = null;
 
   setCredentials(credentials: ApiCredentials) {
