@@ -17,12 +17,33 @@ const Settings: React.FC = () => {
       dhanAPI.setCredentials(credentials);
       const success = await dhanAPI.authenticate();
       setIsConnected(success);
+      if (success) {
+        // Store credentials in localStorage for persistence
+        localStorage.setItem('dhan_credentials', JSON.stringify(credentials));
+      }
     } catch (error) {
       console.error('Connection failed:', error);
+      setIsConnected(false);
     } finally {
       setLoading(false);
     }
   };
+
+  // Load saved credentials on component mount
+  React.useEffect(() => {
+    const savedCredentials = localStorage.getItem('dhan_credentials');
+    if (savedCredentials) {
+      try {
+        const parsed = JSON.parse(savedCredentials);
+        setCredentials(parsed);
+        dhanAPI.setCredentials(parsed);
+        // Auto-test connection
+        dhanAPI.authenticate().then(setIsConnected);
+      } catch (error) {
+        console.error('Error loading saved credentials:', error);
+      }
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -40,15 +61,18 @@ const Settings: React.FC = () => {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              API Key
+              Access Token
             </label>
             <input
               type="password"
               value={credentials.apiKey}
               onChange={(e) => setCredentials({...credentials, apiKey: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter your Dhan API key"
+              placeholder="Enter your Dhan access token"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Get your access token from Dhan API dashboard
+            </p>
           </div>
           
           <div>
@@ -62,6 +86,9 @@ const Settings: React.FC = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your Client ID"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Your Dhan client ID (usually starts with 11)
+            </p>
           </div>
           
           <div className="flex items-center justify-between">
@@ -73,7 +100,7 @@ const Settings: React.FC = () => {
             </div>
             <button
               onClick={handleConnect}
-              disabled={loading || !credentials.apiKey || !credentials.clientId}
+              disabled={loading || !credentials.apiKey}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? (
@@ -85,6 +112,14 @@ const Settings: React.FC = () => {
             </button>
           </div>
         </div>
+        
+        {isConnected && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+            <p className="text-green-700 text-sm">
+              ✅ Successfully connected to Dhan API! You can now place orders and fetch live data.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow-lg p-6">

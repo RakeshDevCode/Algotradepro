@@ -3,9 +3,10 @@ import { TrendingUp, Shield, Zap, BarChart3, ArrowRight, Play } from 'lucide-rea
 
 interface HomePageProps {
   onGetStarted: () => void;
+  onShowAuth: () => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onGetStarted }) => {
+const HomePage: React.FC<HomePageProps> = ({ onGetStarted, onShowAuth }) => {
   const features = [
     {
       icon: TrendingUp,
@@ -64,17 +65,28 @@ const HomePage: React.FC<HomePageProps> = ({ onGetStarted }) => {
             
             {/* CTA Button */}
             <div className="animate-fade-in-up animation-delay-1500">
-              <button
-                onClick={onGetStarted}
-                className="group relative inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-full hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-300 shadow-2xl hover:shadow-blue-500/25"
-              >
-                <Play className="w-5 h-5 mr-3 group-hover:animate-pulse" />
-                Start Trading Now
-                <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-1 transition-transform" />
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  onClick={onShowAuth}
+                  className="group relative inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-full hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-300 shadow-2xl hover:shadow-blue-500/25"
+                >
+                  <Play className="w-5 h-5 mr-3 group-hover:animate-pulse" />
+                  Get Started
+                  <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-1 transition-transform" />
+                  
+                  {/* Animated border */}
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 blur transition-opacity duration-300"></div>
+                </button>
                 
-                {/* Animated border */}
-                <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 opacity-0 group-hover:opacity-100 blur transition-opacity duration-300"></div>
-              </button>
+                <button
+                  onClick={onGetStarted}
+                  className="group relative inline-flex items-center px-8 py-4 text-lg font-semibold text-blue-600 bg-white rounded-full hover:bg-gray-50 transform hover:scale-105 transition-all duration-300 shadow-2xl border-2 border-blue-600"
+                >
+                  <BarChart3 className="w-5 h-5 mr-3" />
+                  View Demo
+                  <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

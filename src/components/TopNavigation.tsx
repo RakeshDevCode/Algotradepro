@@ -1,12 +1,22 @@
 import React from 'react';
 import { BarChart3, TrendingUp, Wallet, Settings, History, Bot } from 'lucide-react';
+import { User } from '../services/authService';
 
 interface TopNavigationProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
+  user: User | null;
+  onShowAuth: () => void;
+  onLogout: () => void;
 }
 
-const TopNavigation: React.FC<TopNavigationProps> = ({ activeTab, onTabChange }) => {
+const TopNavigation: React.FC<TopNavigationProps> = ({ 
+  activeTab, 
+  onTabChange, 
+  user, 
+  onShowAuth, 
+  onLogout 
+}) => {
   const menuItems = [
     { id: 'home', label: 'Home', icon: BarChart3 },
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -47,16 +57,39 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ activeTab, onTabChange })
             </div>
           </div>
           
-          <div className="hidden md:block">
-            <div className="text-sm text-gray-400">
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
-                  <span>Connected</span>
+          <div className="flex items-center space-x-4">
+            <div className="hidden md:block">
+              <div className="text-sm text-gray-400">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
+                    <span>Connected</span>
+                  </div>
+                  <div>{new Date().toLocaleTimeString()}</div>
                 </div>
-                <div>{new Date().toLocaleTimeString()}</div>
               </div>
             </div>
+            
+            {user ? (
+              <div className="flex items-center space-x-3">
+                <div className="text-sm text-gray-300">
+                  Welcome, {user.displayName}
+                </div>
+                <button
+                  onClick={onLogout}
+                  className="px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onShowAuth}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Login
+              </button>
+            )}
           </div>
         </div>
       </div>

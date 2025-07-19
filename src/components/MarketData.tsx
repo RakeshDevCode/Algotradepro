@@ -20,7 +20,7 @@ const MarketData: React.FC = () => {
     };
 
     fetchMarketData();
-    const interval = setInterval(fetchMarketData, 5000); // Update every 5 seconds
+    const interval = setInterval(fetchMarketData, 2000); // Update every 2 seconds for more dynamic feel
 
     return () => clearInterval(interval);
   }, []);
