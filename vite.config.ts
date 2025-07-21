@@ -5,17 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    proxy: {
-      '/api': {
-        target: 'https://api.dhan.co',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-        secure: true,
-        headers: {
-          'Origin': 'https://api.dhan.co'
-        }
-      }
-    }
+    // Remove proxy since we're using direct API calls
   },
   optimizeDeps: {
     exclude: ['lucide-react'],

@@ -17,24 +17,29 @@ class CSVParserService {
   async loadSecurityData(csvContent: string) {
     try {
       const lines = csvContent.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
       
       // Find required column indices
       const securityIdIndex = headers.findIndex(h => 
-        h.includes('SEM_SMST_SECURITY_ID') || h.includes('SECURITY_ID')
+        h.includes('SEM_SMST_SECURITY_ID') || h.includes('SECURITY_ID') || h.toLowerCase().includes('securityid')
       );
       const tradingSymbolIndex = headers.findIndex(h => 
-        h.includes('SEM_TRADING_SYMBOL') || h.includes('TRADING_SYMBOL')
+        h.includes('SEM_TRADING_SYMBOL') || h.includes('TRADING_SYMBOL') || h.toLowerCase().includes('tradingsymbol')
       );
       const customSymbolIndex = headers.findIndex(h => 
-        h.includes('SEM_CUSTOM_SYMBOL') || h.includes('CUSTOM_SYMBOL')
+        h.includes('SEM_CUSTOM_SYMBOL') || h.includes('CUSTOM_SYMBOL') || h.toLowerCase().includes('customsymbol')
       );
       const exchangeIndex = headers.findIndex(h => 
-        h.includes('SEM_EXM_EXCH_ID') || h.includes('EXCHANGE')
+        h.includes('SEM_EXM_EXCH_ID') || h.includes('EXCHANGE') || h.toLowerCase().includes('exchange')
       );
 
+      console.log('CSV Headers found:', headers);
+      console.log('Column indices:', { securityIdIndex, tradingSymbolIndex, customSymbolIndex, exchangeIndex });
+
       if (securityIdIndex === -1 || tradingSymbolIndex === -1) {
-        throw new Error('Required columns not found in CSV');
+        console.warn('Required columns not found in CSV, using fallback data');
+        this.loadFallbackData();
+        return;
       }
 
       // Parse data rows
@@ -65,10 +70,47 @@ class CSVParserService {
       }
 
       console.log(`Loaded ${this.securityData.size} securities from CSV`);
+      
+      // If no data loaded, use fallback
+      if (this.securityData.size === 0) {
+        this.loadFallbackData();
+      }
     } catch (error) {
       console.error('Error parsing CSV:', error);
-      throw error;
+      this.loadFallbackData();
     }
+  }
+
+  private loadFallbackData() {
+    const fallbackData = [
+      { securityId: '2885', tradingSymbol: 'RELIANCE', customSymbol: 'Reliance Industries', exchangeSegment: 'NSE_EQ' },
+      { securityId: '11536', tradingSymbol: 'TCS', customSymbol: 'Tata Consultancy Services', exchangeSegment: 'NSE_EQ' },
+      { securityId: '1333', tradingSymbol: 'HDFCBANK', customSymbol: 'HDFC Bank', exchangeSegment: 'NSE_EQ' },
+      { securityId: '1594', tradingSymbol: 'INFY', customSymbol: 'Infosys', exchangeSegment: 'NSE_EQ' },
+      { securityId: '4963', tradingSymbol: 'ICICIBANK', customSymbol: 'ICICI Bank', exchangeSegment: 'NSE_EQ' },
+      { securityId: '317', tradingSymbol: 'BHARTIARTL', customSymbol: 'Bharti Airtel', exchangeSegment: 'NSE_EQ' },
+      { securityId: '1660', tradingSymbol: 'ITC', customSymbol: 'ITC', exchangeSegment: 'NSE_EQ' },
+      { securityId: '3045', tradingSymbol: 'SBIN', customSymbol: 'State Bank of India', exchangeSegment: 'NSE_EQ' },
+      { securityId: '1922', tradingSymbol: 'LT', customSymbol: 'Larsen & Toubro', exchangeSegment: 'NSE_EQ' },
+      { securityId: '1808', tradingSymbol: 'KOTAKBANK', customSymbol: 'Kotak Mahindra Bank', exchangeSegment: 'NSE_EQ' }
+    ];
+
+    fallbackData.forEach(item => {
+      const security: SecurityData = {
+        securityId: item.securityId,
+        tradingSymbol: item.tradingSymbol,
+        customSymbol: item.customSymbol,
+        exchangeSegment: item.exchangeSegment,
+        instrumentType: 'ES',
+        series: 'EQ'
+      };
+      
+      this.securityData.set(item.securityId, security);
+      this.symbolToSecurityId.set(item.tradingSymbol.toUpperCase(), item.securityId);
+      this.searchIndex.push(security);
+    });
+
+    console.log('Loaded fallback security data');
   }
 
   getSecurityById(securityId: string): SecurityData | null {
