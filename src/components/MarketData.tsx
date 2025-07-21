@@ -7,12 +7,14 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
 const MarketData: React.FC = () => {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   useEffect(() => {
     const fetchMarketData = async () => {
       try {
-        const data = await dhanAPI.getMarketData();
+        const data = await dhanAPI.getMarketData(false);
         setStocks(data);
+        setLastRefresh(new Date());
       } catch (error) {
         console.error('Error fetching market data:', error);
       } finally {
@@ -21,12 +23,20 @@ const MarketData: React.FC = () => {
     };
 
     fetchMarketData();
-    // Only update frequently during market hours
-    const updateInterval = MarketHours.isMarketOpen() ? 5000 : 30000; // 5s during market hours, 30s when closed
-    const interval = setInterval(fetchMarketData, updateInterval);
-
-    return () => clearInterval(interval);
   }, []);
+
+  const handleRefresh = async () => {
+    setLoading(true);
+    try {
+      const data = await dhanAPI.getMarketData(true);
+      setStocks(data);
+      setLastRefresh(new Date());
+    } catch (error) {
+      console.error('Error refreshing market data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -43,10 +53,16 @@ const MarketData: React.FC = () => {
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Market Data</h2>
             <p className="text-sm text-gray-600">
-              {MarketHours.isMarketOpen() ? 'Live prices during market hours' : 'Last known prices - Market closed'}
+              Nifty 50 Top 10 Stocks - Last updated: {lastRefresh.toLocaleTimeString()}
             </p>
           </div>
           <div className="text-right">
+            <button
+              onClick={handleRefresh}
+              className="mb-2 px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+            >
+              Refresh Prices
+            </button>
             <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
               MarketHours.isMarketOpen() 
                 ? 'bg-green-100 text-green-800' 

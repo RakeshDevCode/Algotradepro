@@ -19,21 +19,13 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ onOrderPlaced }) =>
       try {
         setLoading(true);
         
-        // Fetch orders and order book separately to handle individual failures
+        // Only fetch orders, not continuously
         try {
           const ordersData = await dhanAPI.getOrders();
           setOrders(ordersData);
         } catch (orderError) {
           console.warn('Failed to fetch orders:', orderError);
-          setOrders([]); // Set empty array on error
-        }
-        
-        try {
-          const orderBookData = await dhanAPI.getOrderBook(selectedSymbol);
-          setOrderBook(orderBookData);
-        } catch (orderBookError) {
-          console.warn('Failed to fetch order book:', orderBookError);
-          // Keep existing order book data on error
+          setOrders([]);
         }
         
       } catch (error) {
@@ -44,10 +36,16 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ onOrderPlaced }) =>
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 3000); // Update every 3 seconds
+  }, []);
 
-    return () => clearInterval(interval);
-  }, [selectedSymbol]);
+  const fetchOrderBook = async () => {
+    try {
+      const orderBookData = await dhanAPI.getOrderBook(selectedSymbol);
+      setOrderBook(orderBookData);
+    } catch (error) {
+      console.warn('Failed to fetch order book:', error);
+    }
+  };
 
   const handleOrderPlaced = (order: Order) => {
     setOrders([order, ...orders]);

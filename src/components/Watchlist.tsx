@@ -31,6 +31,7 @@ const WatchlistComponent: React.FC = () => {
           setSearchResults(results);
         } catch (error) {
           console.error('Error searching stocks:', error);
+          setSearchResults([]);
         } finally {
           setLoading(false);
         }

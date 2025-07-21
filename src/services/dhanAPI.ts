@@ -6,64 +6,32 @@ import { MarketHours } from './marketHours';
 class DhanAPIService {
   private baseURL = '/api';
   private credentials: ApiCredentials | null = null;
-  private liveDataCache: Map<string, Stock> = new Map();
   private orderStatusCallbacks: Map<string, (status: string, message: string) => void> = new Map();
+  
+  // Nifty 50 top 10 stocks with their security IDs
+  private readonly NIFTY_TOP_10 = [
+    { symbol: 'RELIANCE', securityId: '2885', name: 'Reliance Industries' },
+    { symbol: 'TCS', securityId: '11536', name: 'Tata Consultancy Services' },
+    { symbol: 'HDFCBANK', securityId: '1333', name: 'HDFC Bank' },
+    { symbol: 'INFY', securityId: '1594', name: 'Infosys' },
+    { symbol: 'ICICIBANK', securityId: '4963', name: 'ICICI Bank' },
+    { symbol: 'BHARTIARTL', securityId: '317', name: 'Bharti Airtel' },
+    { symbol: 'ITC', securityId: '1660', name: 'ITC' },
+    { symbol: 'SBIN', securityId: '3045', name: 'State Bank of India' },
+    { symbol: 'LT', securityId: '1922', name: 'Larsen & Toubro' },
+    { symbol: 'KOTAKBANK', securityId: '1808', name: 'Kotak Mahindra Bank' }
+  ];
 
   setCredentials(credentials: ApiCredentials) {
     this.credentials = credentials;
     
     // Initialize WebSocket connection for live data
     if (credentials.apiKey && credentials.clientId) {
-      webSocketService.setCredentials(credentials.apiKey, credentials.clientId);
-      this.initializeLiveData();
-    }
-  }
-
-  private async initializeLiveData() {
-    try {
+      // Only initialize WebSocket during market hours
       if (MarketHours.isMarketOpen()) {
-        await webSocketService.connect();
-        
-        // Subscribe to popular stocks
-        const popularSecurities = csvParserService.getPopularSecurities();
-        const instruments = popularSecurities.map(security => ({
-          exchangeSegment: security.exchangeSegment,
-          securityId: security.securityId
-        }));
-
-        if (instruments.length > 0) {
-          webSocketService.subscribeToInstruments(instruments);
-          
-          // Set up data handlers
-          popularSecurities.forEach(security => {
-            webSocketService.subscribe(security.securityId, (data: TickerData) => {
-              this.updateLiveData(security.securityId, data);
-            });
-          });
-        }
+        webSocketService.setCredentials(credentials.apiKey, credentials.clientId);
       }
-    } catch (error) {
-      console.error('Failed to initialize live data:', error);
     }
-  }
-
-  private updateLiveData(securityId: string, tickerData: TickerData) {
-    const security = csvParserService.getSecurityById(securityId);
-    if (!security) return;
-
-    const stock: Stock = {
-      symbol: security.tradingSymbol,
-      name: security.customSymbol,
-      price: tickerData.ltp,
-      change: tickerData.change,
-      changePercent: tickerData.changePercent,
-      volume: tickerData.volume,
-      high: tickerData.high,
-      low: tickerData.low,
-      open: tickerData.open
-    };
-
-    this.liveDataCache.set(securityId, stock);
   }
 
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
@@ -102,26 +70,18 @@ class DhanAPIService {
     }
   }
 
-  async getMarketData(): Promise<Stock[]> {
+  async getMarketData(forceRefresh: boolean = false): Promise<Stock[]> {
     try {
       if (!MarketHours.isMarketOpen()) {
-        return this.getClosedMarketData();
+        return this.getNiftyTop10Data();
       }
 
-      // If WebSocket is connected and we have live data, use it
-      if (webSocketService.isWebSocketConnected() && this.liveDataCache.size > 0) {
-        return Array.from(this.liveDataCache.values()).slice(0, 8);
-      }
-
-      // Fallback to REST API for live quotes
-      const popularSecurities = csvParserService.getPopularSecurities().slice(0, 8);
-      
-      if (!this.credentials?.apiKey || popularSecurities.length === 0) {
-        return this.getClosedMarketData();
+      if (!this.credentials?.apiKey || !forceRefresh) {
+        return this.getNiftyTop10Data();
       }
 
       try {
-        const securityIds = popularSecurities.map(s => s.securityId);
+        const securityIds = this.NIFTY_TOP_10.map(s => s.securityId);
         const response = await this.makeRequest('/marketfeed/ltp', {
           method: 'POST',
           body: JSON.stringify({
@@ -131,7 +91,7 @@ class DhanAPIService {
 
         if (response?.data && Array.isArray(response.data)) {
           return response.data.map((quote: any) => {
-            const security = csvParserService.getSecurityById(quote.securityId?.toString());
+            const security = this.NIFTY_TOP_10.find(s => s.securityId === quote.securityId?.toString());
             if (!security) return null;
 
             return {
@@ -151,39 +111,64 @@ class DhanAPIService {
         console.warn('Live API failed, using fallback data:', apiError);
       }
 
-      return this.getClosedMarketData();
+      return this.getNiftyTop10Data();
       
     } catch (error) {
       console.error('Error fetching market data:', error);
-      return this.getClosedMarketData();
+      return this.getNiftyTop10Data();
     }
   }
 
-  private getClosedMarketData(): Stock[] {
-    const popularSecurities = csvParserService.getPopularSecurities().slice(0, 8);
-    
-    const basePrices: Record<string, number> = {
-      'RELIANCE': 1476.00,
-      'TCS': 3189.60,
-      'HDFCBANK': 1956.00,
-      'INFY': 1456.85,
-      'ICICIBANK': 1426.70,
-      'BHARTIARTL': 1902.00,
-      'ITC': 422.00,
-      'SBIN': 823.00
-    };
-    
-    return popularSecurities.map(security => ({
-      symbol: security.tradingSymbol,
-      name: security.customSymbol,
-      price: basePrices[security.tradingSymbol] || 1000,
+  private getNiftyTop10Data(): Stock[] {
+    return this.NIFTY_TOP_10.map(stock => ({
+      symbol: stock.symbol,
+      name: stock.name,
+      price: 0, // Will be updated when live data is fetched
       change: 0,
       changePercent: 0,
       volume: 0,
-      high: basePrices[security.tradingSymbol] || 1000,
-      low: basePrices[security.tradingSymbol] || 1000,
-      open: basePrices[security.tradingSymbol] || 1000
+      high: 0,
+      low: 0,
+      open: 0
     }));
+  }
+
+  async getLivePrice(symbol: string): Promise<Stock | null> {
+    try {
+      if (!MarketHours.isMarketOpen() || !this.credentials?.apiKey) {
+        return null;
+      }
+
+      const stock = this.NIFTY_TOP_10.find(s => s.symbol === symbol);
+      if (!stock) return null;
+
+      const response = await this.makeRequest('/marketfeed/ltp', {
+        method: 'POST',
+        body: JSON.stringify({
+          NSE_EQ: [stock.securityId]
+        })
+      });
+
+      if (response?.data && response.data.length > 0) {
+        const quote = response.data[0];
+        return {
+          symbol: stock.symbol,
+          name: stock.name,
+          price: quote.ltp || 0,
+          change: (quote.ltp || 0) - (quote.prev_close || 0),
+          changePercent: quote.prev_close ? (((quote.ltp || 0) - quote.prev_close) / quote.prev_close) * 100 : 0,
+          volume: quote.volume || 0,
+          high: quote.high || quote.ltp || 0,
+          low: quote.low || quote.ltp || 0,
+          open: quote.open || quote.ltp || 0
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error fetching live price:', error);
+      return null;
+    }
   }
 
   async placeOrder(order: Omit<Order, 'id' | 'timestamp' | 'status'>): Promise<Order> {
@@ -192,7 +177,7 @@ class DhanAPIService {
         throw new Error('API credentials not configured');
       }
 
-      const security = csvParserService.getSecurityBySymbol(order.symbol);
+      const security = this.NIFTY_TOP_10.find(s => s.symbol === order.symbol);
       if (!security) {
         throw new Error(`Security not found for symbol: ${order.symbol}`);
       }
@@ -201,7 +186,7 @@ class DhanAPIService {
         dhanClientId: this.credentials.clientId,
         correlationId: `order_${Date.now()}`,
         transactionType: order.side,
-        exchangeSegment: security.exchangeSegment,
+        exchangeSegment: 'NSE_EQ',
         productType: "CNC",
         orderType: order.type,
         validity: "DAY",
@@ -260,7 +245,7 @@ class DhanAPIService {
   async getOrders(): Promise<Order[]> {
     try {
       if (!this.credentials?.apiKey || !this.credentials?.clientId) {
-        console.warn('API credentials not configured, returning empty orders');
+        console.warn('API credentials not configured');
         return [];
       }
 
@@ -313,38 +298,73 @@ class DhanAPIService {
 
   async getPositions(): Promise<Position[]> {
     try {
-      const response = await this.makeRequest('/holdings');
+      const response = await this.makeRequest('/positions');
       if (response && Array.isArray(response)) {
-        return response.map((holding: any) => ({
-          symbol: holding.tradingSymbol || holding.symbol,
-          quantity: holding.quantity || 0,
-          avgPrice: holding.avgCostPrice || holding.avgPrice || 0,
-          currentPrice: holding.ltp || holding.currentPrice || 0,
-          pnl: holding.realizedPnl || holding.pnl || 0,
-          pnlPercent: holding.pnlPercent || 0
+        return response.map((position: any) => ({
+          symbol: position.tradingSymbol || position.symbol,
+          quantity: position.netQty || 0,
+          avgPrice: position.buyAvg || position.avgPrice || 0,
+          currentPrice: 0, // Will be updated with live price
+          pnl: position.unrealizedProfit || 0,
+          pnlPercent: position.buyAvg ? ((position.unrealizedProfit || 0) / (position.buyAvg * Math.abs(position.netQty || 1))) * 100 : 0
         }));
       }
       return [];
     } catch (error) {
-      console.warn('Holdings API unavailable, returning empty positions:', error);
+      console.warn('Positions API unavailable:', error);
+      return [];
+    }
+  }
+
+  async getHoldings(): Promise<Position[]> {
+    try {
+      const response = await this.makeRequest('/holdings');
+      if (response && Array.isArray(response)) {
+        return response.map((holding: any) => ({
+          symbol: holding.tradingSymbol || holding.symbol,
+          quantity: holding.totalQty || 0,
+          avgPrice: holding.avgCostPrice || 0,
+          currentPrice: 0, // Will be updated with live price
+          pnl: 0, // Calculate based on current price
+          pnlPercent: 0
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.warn('Holdings API unavailable:', error);
       return [];
     }
   }
 
   async searchSymbols(query: string): Promise<WatchlistItem[]> {
     try {
-      const searchResults = csvParserService.searchSecurities(query, 20);
-      
-      return searchResults.map(security => ({
-        symbol: security.tradingSymbol,
-        name: security.customSymbol,
+      // Search in Nifty top 10 first
+      const niftyResults = this.NIFTY_TOP_10.filter(stock => 
+        stock.symbol.toLowerCase().includes(query.toLowerCase()) ||
+        stock.name.toLowerCase().includes(query.toLowerCase())
+      );
+
+      const results = await Promise.all(niftyResults.map(async (stock) => {
+        const livePrice = await this.getLivePrice(stock.symbol);
+        return {
+          symbol: stock.symbol,
+          name: stock.name,
+          price: livePrice?.price || 0,
+          change: livePrice?.change || 0,
+          changePercent: livePrice?.changePercent || 0
+        };
+      }));
+
+      return results;
+    } catch (error) {
+      console.error('Error searching symbols:', error);
+      return this.NIFTY_TOP_10.map(stock => ({
+        symbol: stock.symbol,
+        name: stock.name,
         price: 0,
         change: 0,
         changePercent: 0
       }));
-    } catch (error) {
-      console.error('Error searching symbols:', error);
-      return [];
     }
   }
 
