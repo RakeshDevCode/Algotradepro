@@ -60,13 +60,14 @@ const Settings: React.FC = () => {
       // Auto-test connection with environment credentials
       dhanAPI.authenticate().then(setIsConnected);
     } else {
+      // No environment credentials available, enable manual input
+      setUseEnvCredentials(false);
       // Fallback to saved credentials
       const savedCredentials = localStorage.getItem('dhan_credentials');
       if (savedCredentials) {
         try {
           const parsed = JSON.parse(savedCredentials);
           setCredentials(parsed);
-          setUseEnvCredentials(false);
           dhanAPI.setCredentials(parsed);
           // Auto-test connection
           dhanAPI.authenticate().then(setIsConnected);
