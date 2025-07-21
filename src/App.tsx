@@ -167,7 +167,13 @@ function App() {
           element={
             <ProtectedRoute>
               <Layout onLogout={handleLogout}>
-                <TradingInterface onOrderPlaced={handleOrderPlaced} />
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Order History</h2>
+                    <p className="text-gray-600 mt-2">View all your past trading orders and their status</p>
+                  </div>
+                  <TradingInterface onOrderPlaced={handleOrderPlaced} />
+                </div>
               </Layout>
             </ProtectedRoute>
           }
