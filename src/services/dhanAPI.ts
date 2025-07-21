@@ -252,7 +252,10 @@ class DhanAPIService {
       return results;
     } catch (error) {
       console.error('Error searching symbols:', error);
-      return this.NIFTY_TOP_10.map(stock => ({
+      return this.NIFTY_TOP_10.filter(stock => 
+        stock.symbol.toLowerCase().includes(query.toLowerCase()) ||
+        stock.name.toLowerCase().includes(query.toLowerCase())
+      ).map(stock => ({
         symbol: stock.symbol,
         name: stock.name,
         price: 0,
@@ -434,7 +437,7 @@ class DhanAPIService {
     }
     
     const stock = this.NIFTY_TOP_10.find(s => s.symbol === symbol);
-    return 0;
+    return stock?.price || 0;
   }
 
   async getOrderBook(symbol: string): Promise<OrderBook> {
@@ -464,6 +467,7 @@ class DhanAPIService {
 
   disconnect() {
     webSocketService.disconnect();
+    this.marketDataCache.clear();
     this.orderStatusCallbacks.clear();
   }
 }
