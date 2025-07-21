@@ -5,22 +5,22 @@ import { MarketHours } from './marketHours';
 
 class DhanAPIService {
   private baseURL = '/api';
-  private marketDataURL = '/marketdata-api';
+  private marketDataURL = '/api';
   private credentials: ApiCredentials | null = null;
   private orderStatusCallbacks: Map<string, (status: string, message: string) => void> = new Map();
   
   // Nifty 50 top 10 stocks with their security IDs
   private readonly NIFTY_TOP_10 = [
-    { symbol: 'RELIANCE', securityId: '2885', name: 'Reliance Industries', price: 2450.75 },
-    { symbol: 'TCS', securityId: '11536', name: 'Tata Consultancy Services', price: 3345.80 },
-    { symbol: 'HDFCBANK', securityId: '1333', name: 'HDFC Bank', price: 1650.25 },
-    { symbol: 'INFY', securityId: '1594', name: 'Infosys', price: 1789.90 },
-    { symbol: 'ICICIBANK', securityId: '4963', name: 'ICICI Bank', price: 1245.60 },
-    { symbol: 'BHARTIARTL', securityId: '317', name: 'Bharti Airtel', price: 1234.50 },
-    { symbol: 'ITC', securityId: '1660', name: 'ITC', price: 456.75 },
-    { symbol: 'SBIN', securityId: '3045', name: 'State Bank of India', price: 789.30 },
-    { symbol: 'LT', securityId: '1922', name: 'Larsen & Toubro', price: 3567.80 },
-    { symbol: 'KOTAKBANK', securityId: '1808', name: 'Kotak Mahindra Bank', price: 1876.45 }
+    { symbol: 'RELIANCE', securityId: '2885', name: 'Reliance Industries' },
+    { symbol: 'TCS', securityId: '11536', name: 'Tata Consultancy Services' },
+    { symbol: 'HDFCBANK', securityId: '1333', name: 'HDFC Bank' },
+    { symbol: 'INFY', securityId: '1594', name: 'Infosys' },
+    { symbol: 'ICICIBANK', securityId: '4963', name: 'ICICI Bank' },
+    { symbol: 'BHARTIARTL', securityId: '317', name: 'Bharti Airtel' },
+    { symbol: 'ITC', securityId: '1660', name: 'ITC' },
+    { symbol: 'SBIN', securityId: '3045', name: 'State Bank of India' },
+    { symbol: 'LT', securityId: '1922', name: 'Larsen & Toubro' },
+    { symbol: 'KOTAKBANK', securityId: '1808', name: 'Kotak Mahindra Bank' }
   ];
 
   private marketDataCache: Map<string, Stock> = new Map();
@@ -39,14 +39,17 @@ class DhanAPIService {
     }
   }
 
-  private async makeRequest(endpoint: string, options: RequestInit = {}, useMarketDataAPI: boolean = false) {
-    const baseUrl = useMarketDataAPI ? this.marketDataURL : this.baseURL;
+  private async makeRequest(endpoint: string, options: RequestInit = {}) {
+    const baseUrl = this.baseURL;
     const url = `${baseUrl}${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       ...(this.credentials?.apiKey && {
         'access-token': this.credentials.apiKey
+      }),
+      ...(this.credentials?.clientId && {
+        'client-id': this.credentials.clientId
       }),
       ...options.headers,
     };
@@ -85,39 +88,35 @@ class DhanAPIService {
         return Array.from(this.marketDataCache.values());
       }
 
-      // Initialize with base data
-      const baseData = this.getNiftyTop10Data();
-      
-      // Update cache with base data
-      baseData.forEach(stock => {
-        this.marketDataCache.set(stock.symbol, stock);
-      });
-
       // Try to fetch live data if market is open and credentials are available
-      if (MarketHours.isMarketOpen() && this.credentials?.apiKey) {
+      if (this.credentials?.apiKey && this.credentials?.clientId) {
         try {
-          const securityIds = this.NIFTY_TOP_10.map(s => s.securityId);
-          const response = await this.makeRequest('/marketfeed/ltp', {
+          const securityIds = this.NIFTY_TOP_10.map(s => parseInt(s.securityId));
+          const response = await this.makeRequest('/v2/marketfeed/ohlc', {
             method: 'POST',
             body: JSON.stringify({
               NSE_EQ: securityIds
             })
-          }, true);
+          });
 
-          if (response?.data && Array.isArray(response.data)) {
-            response.data.forEach((quote: any) => {
-              const security = this.NIFTY_TOP_10.find(s => s.securityId === quote.securityId?.toString());
-              if (security && quote.ltp) {
+          if (response?.status === 'success' && response?.data?.NSE_EQ) {
+            Object.entries(response.data.NSE_EQ).forEach(([securityId, quote]: [string, any]) => {
+              const security = this.NIFTY_TOP_10.find(s => s.securityId === securityId);
+              if (security && quote.last_price) {
+                const prevClose = quote.ohlc?.close || quote.last_price;
+                const change = quote.last_price - prevClose;
+                const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+                
                 const stock: Stock = {
                   symbol: security.symbol,
                   name: security.name,
-                  price: quote.ltp,
-                  change: quote.ltp - (quote.prev_close || security.price),
-                  changePercent: quote.prev_close ? (((quote.ltp) - quote.prev_close) / quote.prev_close) * 100 : 0,
+                  price: quote.last_price,
+                  change: change,
+                  changePercent: changePercent,
                   volume: quote.volume || 0,
-                  high: quote.high || quote.ltp,
-                  low: quote.low || quote.ltp,
-                  open: quote.open || quote.ltp
+                  high: quote.ohlc?.high || quote.last_price,
+                  low: quote.ohlc?.low || quote.last_price,
+                  open: quote.ohlc?.open || quote.last_price
                 };
                 this.marketDataCache.set(stock.symbol, stock);
               }
@@ -126,6 +125,14 @@ class DhanAPIService {
         } catch (apiError) {
           console.warn('Live API failed, using base data:', apiError);
         }
+      }
+
+      // If no live data was fetched, initialize with base data
+      if (this.marketDataCache.size === 0) {
+        const baseData = this.getNiftyTop10Data();
+        baseData.forEach(stock => {
+          this.marketDataCache.set(stock.symbol, stock);
+        });
       }
 
       this.lastFetchTime = now;
@@ -138,16 +145,16 @@ class DhanAPIService {
   }
 
   private getNiftyTop10Data(): Stock[] {
-    return this.NIFTY_TOP_10.map(stock => ({
+    return this.NIFTY_TOP_10.map((stock, index) => ({
       symbol: stock.symbol,
       name: stock.name,
-      price: stock.price,
+      price: 0, // Will be updated with live data
       change: 0,
       changePercent: 0,
       volume: 0,
-      high: stock.price,
-      low: stock.price,
-      open: stock.price
+      high: 0,
+      low: 0,
+      open: 0
     }));
   }
 
@@ -155,7 +162,7 @@ class DhanAPIService {
     try {
       // Check cache first
       const cachedStock = this.marketDataCache.get(symbol);
-      if (cachedStock) {
+      if (cachedStock && cachedStock.price > 0) {
         return cachedStock;
       }
 
@@ -164,40 +171,29 @@ class DhanAPIService {
         return null;
       }
 
-      // Return base data if market is closed or no credentials
-      if (!MarketHours.isMarketOpen() || !this.credentials?.apiKey) {
-        const baseStock: Stock = {
-          symbol: stock.symbol,
-          name: stock.name,
-          price: stock.price,
-          change: 0,
-          changePercent: 0,
-          volume: 0,
-          high: stock.price,
-          low: stock.price,
-          open: stock.price
-        };
-        this.marketDataCache.set(symbol, baseStock);
-        return baseStock;
-      }
-
+          const response = await this.makeRequest('/v2/marketfeed/ohlc', {
+      if (this.credentials?.apiKey && this.credentials?.clientId) {
       try {
-        const response = await this.makeRequest('/marketfeed/ltp', {
+              NSE_EQ: [parseInt(stock.securityId)]
           method: 'POST',
-          body: JSON.stringify({
+          });
             NSE_EQ: [stock.securityId]
-          })
-        }, true);
+          if (response?.status === 'success' && response?.data?.NSE_EQ?.[stock.securityId]) {
+            const quote = response.data.NSE_EQ[stock.securityId];
+            const prevClose = quote.ohlc?.close || quote.last_price;
+            const change = quote.last_price - prevClose;
+            const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+            
 
         if (response?.data && response.data.length > 0) {
           const quote = response.data[0];
-          const liveStock: Stock = {
-            symbol: stock.symbol,
-            name: stock.name,
+              price: quote.last_price,
+              change: change,
+              changePercent: changePercent,
             price: quote.ltp || stock.price,
-            change: (quote.ltp || stock.price) - (quote.prev_close || stock.price),
-            changePercent: quote.prev_close ? (((quote.ltp || stock.price) - quote.prev_close) / quote.prev_close) * 100 : 0,
-            volume: quote.volume || 0,
+              high: quote.ohlc?.high || quote.last_price,
+              low: quote.ohlc?.low || quote.last_price,
+              open: quote.ohlc?.open || quote.last_price
             high: quote.high || quote.ltp || stock.price,
             low: quote.low || quote.ltp || stock.price,
             open: quote.open || quote.ltp || stock.price
@@ -205,6 +201,7 @@ class DhanAPIService {
           this.marketDataCache.set(symbol, liveStock);
           return liveStock;
         }
+      }
       } catch (apiError) {
         console.warn('Live price API failed for', symbol, ':', apiError);
       }
@@ -213,13 +210,13 @@ class DhanAPIService {
       const fallbackStock: Stock = {
         symbol: stock.symbol,
         name: stock.name,
-        price: stock.price,
+        price: 0,
         change: 0,
         changePercent: 0,
         volume: 0,
-        high: stock.price,
-        low: stock.price,
-        open: stock.price
+        high: 0,
+        low: 0,
+        open: 0
       };
       this.marketDataCache.set(symbol, fallbackStock);
       return fallbackStock;
@@ -247,7 +244,7 @@ class DhanAPIService {
         return {
           symbol: stock.symbol,
           name: stock.name,
-          price: livePrice?.price || stock.price,
+          price: livePrice?.price || 0,
           change: livePrice?.change || 0,
           changePercent: livePrice?.changePercent || 0
         };
@@ -256,10 +253,13 @@ class DhanAPIService {
       return results;
     } catch (error) {
       console.error('Error searching symbols:', error);
-      return this.NIFTY_TOP_10.map(stock => ({
+      return this.NIFTY_TOP_10.filter(stock => 
+        stock.symbol.toLowerCase().includes(query.toLowerCase()) ||
+        stock.name.toLowerCase().includes(query.toLowerCase())
+      ).map(stock => ({
         symbol: stock.symbol,
         name: stock.name,
-        price: stock.price,
+        price: 0,
         change: 0,
         changePercent: 0
       }));

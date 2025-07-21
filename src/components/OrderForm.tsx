@@ -58,10 +58,18 @@ const OrderForm: React.FC<OrderFormProps> = ({ onOrderPlaced }) => {
     
     // Fetch current price for the selected symbol
     try {
-      const stockPrice = dhanAPI.getStockPrice(security.tradingSymbol);
-      setCurrentPrice(stockPrice);
+      const stockData = await dhanAPI.getLivePrice(security.tradingSymbol);
+      if (stockData && stockData.price > 0) {
+        setCurrentPrice(stockData.price);
+        setPrice(stockData.price.toString());
+      } else {
+        setCurrentPrice(0);
+        setPrice('');
+      }
     } catch (error) {
       console.error('Error fetching stock price:', error);
+      setCurrentPrice(0);
+      setPrice('');
     }
   };
   const handleSubmit = async (e: React.FormEvent) => {
@@ -224,7 +232,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onOrderPlaced }) => {
               type="number"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              placeholder={currentPrice > 0 ? `${currentPrice.toFixed(2)}` : "Enter price"}
+              placeholder={currentPrice > 0 ? `Current: ₹${currentPrice.toFixed(2)}` : "Enter price"}
               step="0.01"
               min="0"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
