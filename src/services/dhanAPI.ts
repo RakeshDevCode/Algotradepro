@@ -4,7 +4,7 @@ import { webSocketService, TickerData } from './websocketService';
 import { MarketHours } from './marketHours';
 
 class DhanAPIService {
-  private baseURL = 'https://api.dhan.co';
+  private baseURL = '/api';
   private credentials: ApiCredentials | null = null;
   private orderStatusCallbacks: Map<string, (status: string, message: string) => void> = new Map();
   
