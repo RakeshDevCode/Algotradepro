@@ -16,6 +16,7 @@ import AuthModal from './components/AuthModal';
 import ProtectedRoute from './routes/ProtectedRoute';
 
 import { authService } from './services/authService';
+import { dhanAPI } from './services/dhanAPI';
 import { Order } from './types';
 
 function App() {
@@ -33,6 +34,13 @@ function App() {
       dispatch(setUser(JSON.parse(storedUser)));
     }
 
+    // Load saved Dhan API credentials
+    const storedCredentials = localStorage.getItem('dhanCredentials');
+    if (storedCredentials) {
+      const credentials = JSON.parse(storedCredentials);
+      dhanAPI.setCredentials(credentials.apiKey, credentials.clientId);
+    }
+
     const unsubscribe = authService.onAuthStateChanged((firebaseUser) => {
       if (firebaseUser) {
         const newUser: ReduxUser = {
@@ -45,6 +53,8 @@ function App() {
       } else {
         dispatch(setUser(null));
         localStorage.removeItem('authUser');
+        localStorage.removeItem('dhanCredentials');
+        dhanAPI.disconnect();
       }
     });
 
@@ -81,6 +91,8 @@ function App() {
     await authService.logout();
     dispatch(setUser(null));
     localStorage.removeItem('authUser');
+    localStorage.removeItem('dhanCredentials');
+    dhanAPI.disconnect();
     navigate('/');
   };
 
