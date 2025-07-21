@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import MarketData from './MarketData';
 import OrderForm from './OrderForm';
-import { Order } from '../types';
+import { Order, Position } from '../types';
+import * as dhanAPI from '../services/dhanAPI';
 import { TrendingUp, TrendingDown, Activity, DollarSign } from 'lucide-react';
 
 interface DashboardProps {
