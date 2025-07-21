@@ -325,7 +325,7 @@ class DhanAPIService {
         securityId: security.securityId,
         quantity: order.quantity,
         disclosedQuantity: 0,
-        price: order.price,
+        price: order.type === 'MARKET' ? 0 : order.price,
         triggerPrice: 0,
         afterMarketOrder: false,
         amoTime: "OPEN",
