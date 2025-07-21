@@ -10,10 +10,7 @@ export default defineConfig({
         target: 'https://api.dhan.co',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
-        secure: true,
-        onProxyReq: (proxyReq) => {
-          proxyReq.removeHeader('origin');
-        }
+        secure: true
       }
     }
   },
