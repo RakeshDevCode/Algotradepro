@@ -42,15 +42,16 @@ class DhanAPIService {
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
     const baseUrl = this.baseURL;
     const url = `${baseUrl}${endpoint}`;
+    
+    if (!this.credentials?.apiKey || !this.credentials?.clientId) {
+      throw new Error('API credentials not configured');
+    }
+    
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      ...(this.credentials?.apiKey && {
-        'access-token': this.credentials.apiKey
-      }),
-      ...(this.credentials?.clientId && {
-        'client-id': this.credentials.clientId
-      }),
+      'access-token': this.credentials.apiKey,
+      'client-id': this.credentials.clientId,
       ...options.headers,
     };
 
@@ -59,20 +60,56 @@ class DhanAPIService {
       headers,
     });
 
+    // Handle different response types
+    const contentType = response.headers.get('content-type');
+    
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+      
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } else {
+          const errorText = await response.text();
+          if (errorText) {
+            errorMessage = errorText;
+          }
+        }
+      } catch (parseError) {
+        // Use default error message if parsing fails
+      }
+      
+      throw new Error(errorMessage);
     }
 
-    return response.json();
+    // Parse JSON response
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    } else {
+      // Return text for non-JSON responses
+      return response.text();
+    }
   }
 
   async authenticate(): Promise<boolean> {
     try {
-      if (this.credentials?.apiKey) {
-        const response = await this.makeRequest('/fundlimit');
-        return !!response;
+      if (!this.credentials?.apiKey || !this.credentials?.clientId) {
+        console.error('Missing credentials for authentication');
+        return false;
       }
-      return false;
+      
+      // Test authentication with a simple API call
+      const response = await this.makeRequest('/v2/fundlimit');
+      
+      // Check if response is successful
+      if (response && (response.status === 'success' || response.availableBalance !== undefined)) {
+        console.log('Authentication successful');
+        return true;
+      } else {
+        console.error('Authentication failed - invalid response:', response);
+        return false;
+      }
     } catch (error) {
       console.error('Authentication failed:', error);
       return false;

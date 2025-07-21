@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 import { ApiCredentials } from '../types';
 import { dhanAPI } from '../services/dhanAPI';
 import { MarketHours } from '../services/marketHours';
-import { Key, Shield, Save } from 'lucide-react';
+import { Key, Shield, Save, User, Mail } from 'lucide-react';
 
 const Settings: React.FC = () => {
+  const user = useSelector((state: RootState) => state.auth.user);
   const [credentials, setCredentials] = useState<ApiCredentials>({
     apiKey: '',
     clientId: '',
@@ -14,17 +17,27 @@ const Settings: React.FC = () => {
 
   const handleConnect = async () => {
     setLoading(true);
+    setIsConnected(false);
     try {
+      if (!credentials.apiKey || !credentials.clientId) {
+        throw new Error('Please enter both Access Token and Client ID');
+      }
+      
       dhanAPI.setCredentials(credentials);
       const success = await dhanAPI.authenticate();
+      
       setIsConnected(success);
       if (success) {
         // Store credentials in localStorage for persistence
         localStorage.setItem('dhan_credentials', JSON.stringify(credentials));
+      } else {
+        throw new Error('Authentication failed. Please check your credentials.');
       }
     } catch (error) {
       console.error('Connection failed:', error);
       setIsConnected(false);
+      // Clear any stored credentials on failure
+      localStorage.removeItem('dhan_credentials');
     } finally {
       setLoading(false);
     }
@@ -52,6 +65,35 @@ const Settings: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
         <p className="text-gray-600 mt-2">Configure your API credentials and trading preferences</p>
       </div>
+
+      {/* User Profile Section */}
+      {user && (
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="flex items-center mb-4">
+            <User className="w-5 h-5 text-blue-600 mr-2" />
+            <h3 className="text-lg font-semibold text-gray-900">User Profile</h3>
+          </div>
+          
+          <div className="space-y-3">
+            <div className="flex items-center">
+              <Mail className="w-4 h-4 text-gray-500 mr-3" />
+              <div>
+                <p className="text-sm text-gray-500">Email</p>
+                <p className="font-medium text-gray-900">{user.email}</p>
+              </div>
+            </div>
+            {user.name && (
+              <div className="flex items-center">
+                <User className="w-4 h-4 text-gray-500 mr-3" />
+                <div>
+                  <p className="text-sm text-gray-500">Name</p>
+                  <p className="font-medium text-gray-900">{user.name}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="flex items-center mb-4">
@@ -102,7 +144,7 @@ const Settings: React.FC = () => {
             <button
               onClick={handleConnect}
               disabled={loading || !credentials.apiKey}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors min-w-[120px] justify-center"
             >
               {loading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -116,11 +158,20 @@ const Settings: React.FC = () => {
         
         {isConnected && (
           <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
-            <p className="text-green-700 text-sm">
+            <p className="text-green-700 text-sm flex items-center">
+              <Shield className="w-4 h-4 mr-2" />
               ✅ Successfully connected to Dhan API! 
               {MarketHours.isMarketOpen() 
                 ? ' Live data is now available.' 
                 : ' Live data will be available during market hours (9:15 AM - 3:30 PM IST).'}
+            </p>
+          </div>
+        )}
+        
+        {!isConnected && credentials.apiKey && credentials.clientId && !loading && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-700 text-sm">
+              ❌ Connection failed. Please verify your credentials and try again.
             </p>
           </div>
         )}
