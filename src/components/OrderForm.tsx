@@ -17,6 +17,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onOrderPlaced }) => {
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<SecurityData[]>([]);
   const [showSearch, setShowSearch] = useState(false);
+  const [currentPrice, setCurrentPrice] = useState<number>(0);
   const [orderStatus, setOrderStatus] = useState<{
     type: 'success' | 'error' | 'info' | null;
     message: string;
@@ -24,20 +25,44 @@ const OrderForm: React.FC<OrderFormProps> = ({ onOrderPlaced }) => {
 
   const handleSymbolSearch = (query: string) => {
     setSymbol(query);
-    if (query.length > 1) {
-      const results = csvParserService.searchSecurities(query, 10);
+    setCurrentPrice(0);
+    
+    if (query.length >= 1) {
+      // Search in Nifty 50 stocks
+      dhanAPI.searchSymbols(query).then(results => {
+        const searchResults = results.map(item => ({
+          securityId: '',
+          tradingSymbol: item.symbol,
+          customSymbol: item.name,
+          exchangeSegment: 'NSE_EQ',
+          instrumentType: 'ES',
+          series: 'EQ'
+        }));
+        setSearchResults(searchResults);
+        setShowSearch(searchResults.length > 0);
+      }).catch(error => {
+        console.error('Error searching symbols:', error);
+        setSearchResults([]);
+        setShowSearch(false);
+      });
+    } else {
       setSearchResults(results);
       setShowSearch(true);
-    } else {
-      setSearchResults([]);
-      setShowSearch(false);
     }
   };
 
-  const selectSymbol = (security: SecurityData) => {
+  const selectSymbol = async (security: SecurityData) => {
     setSymbol(security.tradingSymbol);
     setSearchResults([]);
     setShowSearch(false);
+    
+    // Fetch current price for the selected symbol
+    try {
+      const stockPrice = dhanAPI.getStockPrice(security.tradingSymbol);
+      setCurrentPrice(stockPrice);
+    } catch (error) {
+      console.error('Error fetching stock price:', error);
+    }
   };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -199,7 +224,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onOrderPlaced }) => {
               type="number"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              placeholder="2450.00"
+              placeholder={currentPrice > 0 ? `${currentPrice.toFixed(2)}` : "Enter price"}
               step="0.01"
               min="0"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

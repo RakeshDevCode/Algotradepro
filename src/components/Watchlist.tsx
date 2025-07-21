@@ -23,7 +23,7 @@ const WatchlistComponent: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (searchQuery.length > 2) {
+    if (searchQuery.length >= 1) {
       const searchStocks = async () => {
         setLoading(true);
         try {

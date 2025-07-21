@@ -12,6 +12,7 @@ const MarketData: React.FC = () => {
   useEffect(() => {
     const fetchMarketData = async () => {
       try {
+        // Fetch market data on component mount (initial load)
         const data = await dhanAPI.getMarketData(false);
         setStocks(data);
         setLastRefresh(new Date());
