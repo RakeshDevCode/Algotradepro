@@ -58,7 +58,7 @@ class DhanAPIService {
   }
 
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
-    const url = `${this.baseURL}${endpoint}`;
+    const url = `https://api.dhan.co${endpoint}`;
     
     if (!this.credentials?.apiKey || !this.credentials?.clientId) {
       throw new Error('API credentials not configured');
@@ -68,6 +68,7 @@ class DhanAPIService {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'access-token': this.credentials.apiKey,
+      'client-id': this.credentials.clientId,
       ...options.headers,
     };
 
@@ -123,14 +124,15 @@ class DhanAPIService {
       }
       
       // Test authentication with fund limit API
-      const response = await this.makeRequest('/v2/fundlimit');
+      const response = await this.makeRequest('/fundlimit');
       
       // Check if response contains expected fields
       if (response && (
         response.dhanClientId || 
         response.availabelBalance !== undefined || 
         response.availableBalance !== undefined ||
-        response.status === 'success'
+        response.status === 'success' ||
+        response.data
       )) {
         console.log('Authentication successful');
         return true;
@@ -143,12 +145,14 @@ class DhanAPIService {
       
       // Provide more specific error messages
       if (error instanceof Error) {
-        if (error.message.includes('Invalid CORS request')) {
+        if (error.message.includes('CORS') || error.message.includes('cors')) {
           throw new Error('Access token has expired or is invalid. Please generate a new token from Dhan API dashboard.');
         } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
           throw new Error('Invalid credentials. Please check your Access Token and Client ID.');
         } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
           throw new Error('Access denied. Please ensure your API key has the required permissions.');
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+          throw new Error('Network error. Please check your internet connection and try again.');
         }
       }
       

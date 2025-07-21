@@ -24,6 +24,14 @@ const Settings: React.FC = () => {
         throw new Error('Please enter both Access Token and Client ID');
       }
       
+      if (credentials.apiKey.trim().length < 10) {
+        throw new Error('Access Token appears to be too short. Please check your token.');
+      }
+      
+      if (!credentials.clientId.match(/^\d+$/)) {
+        throw new Error('Client ID should contain only numbers.');
+      }
+      
       dhanAPI.setCredentials(credentials);
       const success = await dhanAPI.authenticate();
       
