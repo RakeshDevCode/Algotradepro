@@ -123,7 +123,7 @@ class DhanAPIService {
         throw new Error('Client ID must contain only numbers');
       }
       
-      // Test authentication with fund limit API
+      // Test authentication with fund limit API (FREE endpoint)
       const response = await this.makeRequest('/fundlimit');
       
       // Check if response contains expected fields
@@ -134,7 +134,7 @@ class DhanAPIService {
         response.status === 'success' ||
         response.data
       )) {
-        console.log('Authentication successful');
+        console.log('Authentication successful - Using mock data for market prices');
         return true;
       } else {
         console.error('Authentication failed - invalid response format:', response);
@@ -162,66 +162,12 @@ class DhanAPIService {
 
   async getMarketData(forceRefresh: boolean = false): Promise<Stock[]> {
     try {
-      const now = Date.now();
-      
-      // Return cached data if available and not forcing refresh
-      if (!forceRefresh && this.marketDataCache.size > 0 && (now - this.lastFetchTime) < this.CACHE_DURATION) {
-        return Array.from(this.marketDataCache.values());
-      }
-
-      // Fetch live data if credentials are available
-      if (this.credentials?.apiKey && this.credentials?.clientId) {
-        try {
-          const securityIds = this.POPULAR_STOCKS.map(s => parseInt(s.securityId));
-          const response = await this.makeRequest('/v2/marketfeed/ohlc', {
-            method: 'POST',
-            body: JSON.stringify({
-              NSE_EQ: securityIds
-            })
-          });
-
-          if (response?.status === 'success' && response?.data?.NSE_EQ) {
-            const updatedStocks: Stock[] = [];
-            
-            Object.entries(response.data.NSE_EQ).forEach(([securityId, quote]: [string, any]) => {
-              const security = this.POPULAR_STOCKS.find(s => s.securityId === securityId);
-              if (security && quote.last_price) {
-                const prevClose = quote.ohlc?.close || quote.last_price;
-                const change = quote.last_price - prevClose;
-                const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
-                
-                const stock: Stock = {
-                  symbol: security.symbol,
-                  name: security.name,
-                  price: quote.last_price,
-                  change: change,
-                  changePercent: changePercent,
-                  volume: quote.volume || 0,
-                  high: quote.ohlc?.high || quote.last_price,
-                  low: quote.ohlc?.low || quote.last_price,
-                  open: quote.ohlc?.open || quote.last_price
-                };
-                
-                this.marketDataCache.set(stock.symbol, stock);
-                updatedStocks.push(stock);
-              }
-            });
-
-            this.lastFetchTime = now;
-            return updatedStocks;
-          }
-        } catch (apiError) {
-          console.warn('Live market data API failed:', apiError);
-        }
-      }
-
-      // Fallback to mock data if API fails or no credentials
+      // Using mock data only - no paid API calls
       const fallbackData = this.generateMockData();
       fallbackData.forEach(stock => {
         this.marketDataCache.set(stock.symbol, stock);
       });
       
-      this.lastFetchTime = now;
       return fallbackData;
 
     } catch (error) {
@@ -252,53 +198,7 @@ class DhanAPIService {
 
   async getLivePrice(symbol: string): Promise<Stock | null> {
     try {
-      // Check cache first
-      const cachedStock = this.marketDataCache.get(symbol);
-      if (cachedStock && (Date.now() - this.lastFetchTime) < this.CACHE_DURATION) {
-        return cachedStock;
-      }
-
-      const stock = this.POPULAR_STOCKS.find(s => s.symbol === symbol);
-      if (!stock) {
-        return null;
-      }
-
-      if (this.credentials?.apiKey && this.credentials?.clientId) {
-        try {
-          const response = await this.makeRequest('/v2/marketfeed/ohlc', {
-            method: 'POST',
-            body: JSON.stringify({
-              NSE_EQ: [parseInt(stock.securityId)]
-            })
-          });
-          
-          if (response?.status === 'success' && response?.data?.NSE_EQ?.[stock.securityId]) {
-            const quote = response.data.NSE_EQ[stock.securityId];
-            const prevClose = quote.ohlc?.close || quote.last_price;
-            const change = quote.last_price - prevClose;
-            const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
-            
-            const liveStock: Stock = {
-              symbol: stock.symbol,
-              name: stock.name,
-              price: quote.last_price,
-              change: change,
-              changePercent: changePercent,
-              volume: quote.volume || 0,
-              high: quote.ohlc?.high || quote.last_price,
-              low: quote.ohlc?.low || quote.last_price,
-              open: quote.ohlc?.open || quote.last_price
-            };
-            
-            this.marketDataCache.set(symbol, liveStock);
-            return liveStock;
-          }
-        } catch (apiError) {
-          console.warn('Live price API failed for', symbol, ':', apiError);
-        }
-      }
-
-      // Return mock data if API fails
+      // Using mock data only - no paid API calls
       const mockStock = this.generateMockData().find(s => s.symbol === symbol);
       if (mockStock) {
         this.marketDataCache.set(symbol, mockStock);
@@ -365,61 +265,20 @@ class DhanAPIService {
         throw new Error('API credentials not configured');
       }
 
-      // Find security info from CSV data or popular stocks
-      let securityId = '';
-      const csvSecurity = csvParserService.getSecurityBySymbol(order.symbol);
-      if (csvSecurity) {
-        securityId = csvSecurity.securityId;
-      } else {
-        const popularStock = this.POPULAR_STOCKS.find(s => s.symbol === order.symbol);
-        if (popularStock) {
-          securityId = popularStock.securityId;
-        } else {
-          throw new Error(`Security not found for symbol: ${order.symbol}`);
-        }
-      }
-
-      const orderPayload = {
-        dhanClientId: this.credentials.clientId,
-        correlationId: `order_${Date.now()}`,
-        transactionType: order.side,
-        exchangeSegment: 'NSE_EQ',
-        productType: 'CNC',
-        orderType: order.type,
-        validity: 'DAY',
-        tradingSymbol: order.symbol,
-        securityId: securityId,
-        quantity: order.quantity,
-        disclosedQuantity: 0,
-        price: order.type === 'MARKET' ? 0 : order.price,
-        triggerPrice: 0,
-        afterMarketOrder: !MarketHours.isMarketOpen(),
-        amoTime: 'OPEN',
-        boProfitValue: 0,
-        boStopLossValue: 0,
-        drvExpiryDate: 'NA',
-        drvOptionType: 'NA',
-        drvStrikePrice: 0
-      };
-
-      console.log('Placing order with payload:', orderPayload);
-
-      const response = await this.makeRequest('/orders', {
-        method: 'POST',
-        body: JSON.stringify(orderPayload)
-      });
+      // DEMO MODE: Create mock order without calling paid API
+      console.log('DEMO MODE: Order would be placed with:', order);
 
       const newOrder: Order = {
         ...order,
-        id: response?.orderId || Date.now().toString(),
+        id: `DEMO_${Date.now()}`,
         timestamp: new Date(),
-        status: 'PENDING'
+        status: 'FILLED' // Mock as filled for demo
       };
 
       // Notify about order placement
       const callback = this.orderStatusCallbacks.get(newOrder.id);
       if (callback) {
-        callback('PLACED', `Order placed successfully for ${order.symbol}`);
+        callback('PLACED', `DEMO: Order placed successfully for ${order.symbol}`);
       }
 
       return newOrder;

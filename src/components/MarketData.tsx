@@ -54,7 +54,7 @@ const MarketData: React.FC = () => {
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Market Data</h2>
             <p className="text-sm text-gray-600">
-              Nifty 50 Top 10 Stocks - Last updated: {lastRefresh.toLocaleTimeString()}
+              📊 DEMO: Mock Market Data - Last updated: {lastRefresh.toLocaleTimeString()}
             </p>
           </div>
           <div className="text-right">
@@ -62,7 +62,7 @@ const MarketData: React.FC = () => {
               onClick={handleRefresh}
               className="mb-2 px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
             >
-              Refresh Prices
+              Refresh Mock Data
             </button>
             <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
               MarketHours.isMarketOpen() 
