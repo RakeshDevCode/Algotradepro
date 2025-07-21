@@ -14,6 +14,15 @@ export default defineConfig({
         headers: {
           'Origin': 'https://api.dhan.co'
         }
+      },
+      '/marketdata-api': {
+        target: 'https://api-feed.dhan.co',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/marketdata-api/, ''),
+        secure: true,
+        headers: {
+          'Origin': 'https://api-feed.dhan.co'
+        }
       }
     }
   },

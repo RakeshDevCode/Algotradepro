@@ -5,6 +5,7 @@ import { MarketHours } from './marketHours';
 
 class DhanAPIService {
   private baseURL = '/api';
+  private marketDataURL = '/marketdata-api';
   private credentials: ApiCredentials | null = null;
   private orderStatusCallbacks: Map<string, (status: string, message: string) => void> = new Map();
   
@@ -34,8 +35,9 @@ class DhanAPIService {
     }
   }
 
-  private async makeRequest(endpoint: string, options: RequestInit = {}) {
-    const url = `${this.baseURL}${endpoint}`;
+  private async makeRequest(endpoint: string, options: RequestInit = {}, useMarketDataAPI: boolean = false) {
+    const baseUrl = useMarketDataAPI ? this.marketDataURL : this.baseURL;
+    const url = `${baseUrl}${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -87,7 +89,7 @@ class DhanAPIService {
           body: JSON.stringify({
             NSE_EQ: securityIds
           })
-        });
+        }, true);
 
         if (response?.data && Array.isArray(response.data)) {
           return response.data.map((quote: any) => {
@@ -147,7 +149,7 @@ class DhanAPIService {
         body: JSON.stringify({
           NSE_EQ: [stock.securityId]
         })
-      });
+      }, true);
 
       if (response?.data && response.data.length > 0) {
         const quote = response.data[0];
