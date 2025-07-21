@@ -46,7 +46,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onOrderPlaced }) => {
         setShowSearch(false);
       });
     } else {
-      setSearchResults(results);
+      setSearchResults([]);
       setShowSearch(true);
     }
   };
