@@ -259,22 +259,41 @@ class DhanAPIService {
 
   async getOrders(): Promise<Order[]> {
     try {
+      if (!this.credentials?.apiKey || !this.credentials?.clientId) {
+        console.warn('API credentials not configured, returning empty orders');
+        return [];
+      }
+
       const response = await this.makeRequest('/orders');
-      if (response && Array.isArray(response)) {
-        return response.map((order: any) => ({
-          id: order.orderId || order.id,
-          symbol: order.tradingSymbol || order.symbol,
+      
+      if (response && response.data && Array.isArray(response.data)) {
+        return response.data.map((order: any) => ({
+          id: order.orderId || order.id || Date.now().toString(),
+          symbol: order.tradingSymbol || order.symbol || 'UNKNOWN',
           side: order.transactionType === 'BUY' ? 'BUY' : 'SELL',
-          quantity: order.quantity,
-          price: order.price,
+          quantity: order.quantity || 0,
+          price: order.price || 0,
+          type: order.orderType === 'LIMIT' ? 'LIMIT' : 'MARKET',
+          status: this.mapOrderStatus(order.orderStatus),
+          timestamp: new Date(order.createTime || Date.now())
+        }));
+      } else if (response && Array.isArray(response)) {
+        return response.map((order: any) => ({
+          id: order.orderId || order.id || Date.now().toString(),
+          symbol: order.tradingSymbol || order.symbol || 'UNKNOWN',
+          side: order.transactionType === 'BUY' ? 'BUY' : 'SELL',
+          quantity: order.quantity || 0,
+          price: order.price || 0,
           type: order.orderType === 'LIMIT' ? 'LIMIT' : 'MARKET',
           status: this.mapOrderStatus(order.orderStatus),
           timestamp: new Date(order.createTime || Date.now())
         }));
       }
+      
+      console.warn('Orders API returned unexpected format:', response);
       return [];
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.warn('Orders API unavailable, returning empty list:', error);
       return [];
     }
   }
