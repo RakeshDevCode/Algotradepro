@@ -17,14 +17,27 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ onOrderPlaced }) =>
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [ordersData, orderBookData] = await Promise.all([
-          dhanAPI.getOrders(),
-          dhanAPI.getOrderBook(selectedSymbol)
-        ]);
-        setOrders(ordersData);
-        setOrderBook(orderBookData);
+        setLoading(true);
+        
+        // Fetch orders and order book separately to handle individual failures
+        try {
+          const ordersData = await dhanAPI.getOrders();
+          setOrders(ordersData);
+        } catch (orderError) {
+          console.warn('Failed to fetch orders:', orderError);
+          setOrders([]); // Set empty array on error
+        }
+        
+        try {
+          const orderBookData = await dhanAPI.getOrderBook(selectedSymbol);
+          setOrderBook(orderBookData);
+        } catch (orderBookError) {
+          console.warn('Failed to fetch order book:', orderBookError);
+          // Keep existing order book data on error
+        }
+        
       } catch (error) {
-        console.error('Error fetching trading data:', error);
+        console.warn('Error in fetchData:', error);
       } finally {
         setLoading(false);
       }
