@@ -152,11 +152,16 @@ const Settings: React.FC = () => {
                       } else {
                         setCredentials({ apiKey: '', clientId: '' });
                       }
-                ✅ Successfully connected to Dhan API! 
-                <br />
-                📊 <strong>DEMO MODE:</strong> Using mock market data (no paid API calls)
-                <br />
-                💰 Orders will be simulated for testing purposes
+                    }}
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+              <div className="mt-3 text-sm text-blue-700">
+                      }}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
               </div>
             </div>
           )}
@@ -221,10 +226,7 @@ const Settings: React.FC = () => {
           <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
             <p className="text-green-700 text-sm flex items-center">
               <Shield className="w-4 h-4 mr-2" />
-              ✅ Successfully connected to Dhan API! 
-              {MarketHours.isMarketOpen() 
-                ? ' Live data is now available.' 
-                : ' Live data will be available during market hours (9:15 AM - 3:30 PM IST).'}
+              Successfully connected to Dhan API! DEMO MODE: Using mock market data (no paid API calls). Orders will be simulated for testing purposes.
             </p>
           </div>
         )}
