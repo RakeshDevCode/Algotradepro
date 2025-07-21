@@ -9,11 +9,12 @@ import { Key, Shield, Save, User, Mail } from 'lucide-react';
 const Settings: React.FC = () => {
   const user = useSelector((state: RootState) => state.auth.user);
   const [credentials, setCredentials] = useState<ApiCredentials>({
-    apiKey: '',
-    clientId: '',
+    apiKey: import.meta.env.VITE_DHAN_ACCESS_TOKEN || '',
+    clientId: import.meta.env.VITE_DHAN_CLIENT_ID || '',
   });
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [useEnvCredentials, setUseEnvCredentials] = useState(true);
 
   const handleConnect = async () => {
     setLoading(true);
@@ -48,16 +49,30 @@ const Settings: React.FC = () => {
 
   // Load saved credentials on component mount
   React.useEffect(() => {
-    const savedCredentials = localStorage.getItem('dhan_credentials');
-    if (savedCredentials) {
-      try {
-        const parsed = JSON.parse(savedCredentials);
-        setCredentials(parsed);
-        dhanAPI.setCredentials(parsed);
-        // Auto-test connection
-        dhanAPI.authenticate().then(setIsConnected);
-      } catch (error) {
-        console.error('Error loading saved credentials:', error);
+    // Check if environment credentials are available
+    const envToken = import.meta.env.VITE_DHAN_ACCESS_TOKEN;
+    const envClientId = import.meta.env.VITE_DHAN_CLIENT_ID;
+    
+    if (envToken && envClientId) {
+      const envCredentials = { apiKey: envToken, clientId: envClientId };
+      setCredentials(envCredentials);
+      dhanAPI.setCredentials(envCredentials);
+      // Auto-test connection with environment credentials
+      dhanAPI.authenticate().then(setIsConnected);
+    } else {
+      // Fallback to saved credentials
+      const savedCredentials = localStorage.getItem('dhan_credentials');
+      if (savedCredentials) {
+        try {
+          const parsed = JSON.parse(savedCredentials);
+          setCredentials(parsed);
+          setUseEnvCredentials(false);
+          dhanAPI.setCredentials(parsed);
+          // Auto-test connection
+          dhanAPI.authenticate().then(setIsConnected);
+        } catch (error) {
+          console.error('Error loading saved credentials:', error);
+        }
       }
     }
   }, []);
@@ -105,6 +120,37 @@ const Settings: React.FC = () => {
         </div>
         
         <div className="space-y-4">
+          {/* Environment Credentials Toggle */}
+          {import.meta.env.VITE_DHAN_ACCESS_TOKEN && import.meta.env.VITE_DHAN_CLIENT_ID && (
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-blue-900">Environment Credentials</h4>
+                  <p className="text-sm text-blue-700">Use pre-configured API credentials from environment</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={useEnvCredentials}
+                    onChange={(e) => {
+                      setUseEnvCredentials(e.target.checked);
+                      if (e.target.checked) {
+                        setCredentials({
+                          apiKey: import.meta.env.VITE_DHAN_ACCESS_TOKEN || '',
+                          clientId: import.meta.env.VITE_DHAN_CLIENT_ID || ''
+                        });
+                      } else {
+                        setCredentials({ apiKey: '', clientId: '' });
+                      }
+                    }}
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+          )}
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Access Token
@@ -115,9 +161,10 @@ const Settings: React.FC = () => {
               onChange={(e) => setCredentials({...credentials, apiKey: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your Dhan access token"
+              disabled={useEnvCredentials}
             />
             <p className="text-xs text-gray-500 mt-1">
-              Get your access token from Dhan API dashboard
+              {useEnvCredentials ? 'Using environment credentials' : 'Get your access token from Dhan API dashboard'}
             </p>
           </div>
           
@@ -131,9 +178,10 @@ const Settings: React.FC = () => {
               onChange={(e) => setCredentials({...credentials, clientId: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter your Client ID"
+              disabled={useEnvCredentials}
             />
             <p className="text-xs text-gray-500 mt-1">
-              Your Dhan client ID (usually starts with 11)
+              {useEnvCredentials ? 'Using environment credentials' : 'Your Dhan client ID (usually starts with 11)'}
             </p>
           </div>
           
