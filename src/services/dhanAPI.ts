@@ -113,6 +113,15 @@ class DhanAPIService {
         return false;
       }
       
+      // Validate credential format
+      if (this.credentials.apiKey.length < 10) {
+        throw new Error('Access token appears to be invalid (too short)');
+      }
+      
+      if (!this.credentials.clientId.match(/^\d+$/)) {
+        throw new Error('Client ID must contain only numbers');
+      }
+      
       // Test authentication with fund limit API
       const response = await this.makeRequest('/v2/fundlimit');
       
@@ -126,11 +135,23 @@ class DhanAPIService {
         console.log('Authentication successful');
         return true;
       } else {
-        console.error('Authentication failed - invalid response format');
-        return false;
+        console.error('Authentication failed - invalid response format:', response);
+        throw new Error('Authentication failed - unexpected response format');
       }
     } catch (error) {
       console.error('Authentication failed:', error);
+      
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('Invalid CORS request')) {
+          throw new Error('Access token has expired or is invalid. Please generate a new token from Dhan API dashboard.');
+        } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+          throw new Error('Invalid credentials. Please check your Access Token and Client ID.');
+        } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
+          throw new Error('Access denied. Please ensure your API key has the required permissions.');
+        }
+      }
+      
       return false;
     }
   }

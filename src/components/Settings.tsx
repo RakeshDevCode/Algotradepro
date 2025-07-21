@@ -31,13 +31,16 @@ const Settings: React.FC = () => {
         // Store credentials in localStorage for persistence
         localStorage.setItem('dhan_credentials', JSON.stringify(credentials));
       } else {
-        throw new Error('Authentication failed. Please check your credentials.');
+        throw new Error('Authentication failed. Please verify your credentials and try again.');
       }
     } catch (error) {
       console.error('Connection failed:', error);
       setIsConnected(false);
       // Clear any stored credentials on failure
       localStorage.removeItem('dhan_credentials');
+      
+      // Re-throw the error to show the specific message to user
+      throw error;
     } finally {
       setLoading(false);
     }
