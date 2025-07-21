@@ -12,7 +12,6 @@ import StrategyManager from './components/StrategyManager';
 import TradingInterface from './components/TradingInterface';
 import WatchlistManager from './components/WatchlistManager';
 import Settings from './components/Settings';
-import APIKeyPage from './components/APIKeyPage';
 import AuthModal from './components/AuthModal';
 import ProtectedRoute from './routes/ProtectedRoute';
 
@@ -169,16 +168,6 @@ function App() {
             <ProtectedRoute>
               <Layout onLogout={handleLogout}>
                 <Settings />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/apikey"
-          element={
-            <ProtectedRoute>
-              <Layout onLogout={handleLogout}>
-                <APIKeyPage />
               </Layout>
             </ProtectedRoute>
           }

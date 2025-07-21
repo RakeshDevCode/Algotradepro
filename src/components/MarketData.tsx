@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Stock } from '../types';
 import { dhanAPI } from '../services/dhanAPI';
+import { MarketHours } from '../services/marketHours';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 const MarketData: React.FC = () => {
@@ -20,7 +21,9 @@ const MarketData: React.FC = () => {
     };
 
     fetchMarketData();
-    const interval = setInterval(fetchMarketData, 2000); // Update every 2 seconds for more dynamic feel
+    // Only update frequently during market hours
+    const updateInterval = MarketHours.isMarketOpen() ? 5000 : 30000; // 5s during market hours, 30s when closed
+    const interval = setInterval(fetchMarketData, updateInterval);
 
     return () => clearInterval(interval);
   }, []);
@@ -36,8 +39,26 @@ const MarketData: React.FC = () => {
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">Live Market Data</h2>
-        <p className="text-sm text-gray-600">Real-time stock prices and updates</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Market Data</h2>
+            <p className="text-sm text-gray-600">
+              {MarketHours.isMarketOpen() ? 'Live prices during market hours' : 'Last known prices - Market closed'}
+            </p>
+          </div>
+          <div className="text-right">
+            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+              MarketHours.isMarketOpen() 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-red-100 text-red-800'
+            }`}>
+              <div className={`w-2 h-2 rounded-full mr-2 ${
+                MarketHours.isMarketOpen() ? 'bg-green-500' : 'bg-red-500'
+              }`}></div>
+              {MarketHours.getMarketStatus()}
+            </div>
+          </div>
+        </div>
       </div>
       
       <div className="overflow-x-auto">

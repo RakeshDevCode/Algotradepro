@@ -7,7 +7,6 @@ import {
   Settings,
   History,
   Bot,
-  KeyRound,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -22,7 +21,6 @@ const links = [
   { to: '/strategy', label: 'Strategy', icon: Bot },
   { to: '/history', label: 'History', icon: History },
   { to: '/settings', label: 'Settings', icon: Settings },
-  { to: '/apikey', label: 'API Key', icon: KeyRound },
 ];
 
 // Function to safely apply classes based on NavLink active state

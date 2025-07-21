@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ApiCredentials } from '../types';
 import { dhanAPI } from '../services/dhanAPI';
+import { MarketHours } from '../services/marketHours';
 import { Key, Shield, Save } from 'lucide-react';
 
 const Settings: React.FC = () => {
@@ -116,7 +117,28 @@ const Settings: React.FC = () => {
         {isConnected && (
           <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
             <p className="text-green-700 text-sm">
-              ✅ Successfully connected to Dhan API! You can now place orders and fetch live data.
+              ✅ Successfully connected to Dhan API! 
+              {MarketHours.isMarketOpen() 
+                ? ' Live data is now available.' 
+                : ' Live data will be available during market hours (9:15 AM - 3:30 PM IST).'}
+            </p>
+          </div>
+        )}
+        
+        {!MarketHours.isMarketOpen() && (
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+            <p className="text-yellow-700 text-sm">
+              📅 Market Status: {MarketHours.getMarketStatus()}
+              <br />
+              Next market open: {MarketHours.getNextMarketOpen().toLocaleString('en-IN', {
+                timeZone: 'Asia/Kolkata',
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
             </p>
           </div>
         )}

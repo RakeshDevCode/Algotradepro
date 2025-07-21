@@ -1,5 +1,12 @@
-// Firebase Auth Service (Dummy implementation for now)
-// You can replace this with actual Firebase implementation later
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  updateProfile,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { auth } from './firebase.js';
 
 export interface User {
   uid: string;
@@ -8,88 +15,101 @@ export interface User {
 }
 
 class AuthService {
-  private currentUser: User | null = null;
-  private listeners: ((user: User | null) => void)[] = [];
-
-  // Dummy login - replace with Firebase auth
+  // Login with email and password
   async login(email: string, password: string): Promise<User> {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Dummy validation
-    if (email === 'demo@example.com' && password === 'password') {
-      const user: User = {
-        uid: 'demo-user-123',
-        email,
-        displayName: 'Demo User'
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      
+      return {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || ''
       };
-      this.currentUser = user;
-      this.notifyListeners();
-      return user;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      throw new Error(this.getErrorMessage(error.code));
     }
-    
-    // For demo purposes, accept any valid email/password combination
-    if (email.includes('@') && password.length >= 6) {
-      const user: User = {
-        uid: `user-${Date.now()}`,
-        email,
-        displayName: email.split('@')[0]
-      };
-      this.currentUser = user;
-      this.notifyListeners();
-      return user;
-    }
-    
-    throw new Error('Invalid email or password');
   }
 
-  // Dummy signup - replace with Firebase auth
+  // Signup with email and password
   async signup(email: string, password: string, name: string): Promise<User> {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Basic validation
-    if (!email.includes('@')) {
-      throw new Error('Invalid email address');
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      
+      // Update the user's display name
+      await updateProfile(firebaseUser, {
+        displayName: name
+      });
+      
+      return {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        displayName: name
+      };
+    } catch (error: any) {
+      console.error('Signup error:', error);
+      throw new Error(this.getErrorMessage(error.code));
     }
-    
-    if (password.length < 6) {
-      throw new Error('Password must be at least 6 characters');
-    }
-    
-    const user: User = {
-      uid: `user-${Date.now()}`,
-      email,
-      displayName: name
-    };
-    
-    this.currentUser = user;
-    this.notifyListeners();
-    return user;
   }
 
+  // Logout
   async logout(): Promise<void> {
-    this.currentUser = null;
-    this.notifyListeners();
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw new Error('Failed to logout');
+    }
   }
 
+  // Get current user
   getCurrentUser(): User | null {
-    return this.currentUser;
-  }
-
-  onAuthStateChanged(callback: (user: User | null) => void): () => void {
-    this.listeners.push(callback);
-    // Call immediately with current state
-    callback(this.currentUser);
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) return null;
     
-    // Return unsubscribe function
-    return () => {
-      this.listeners = this.listeners.filter(listener => listener !== callback);
+    return {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email || '',
+      displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || ''
     };
   }
 
-  private notifyListeners(): void {
-    this.listeners.forEach(listener => listener(this.currentUser));
+  // Listen to auth state changes
+  onAuthStateChanged(callback: (user: User | null) => void): () => void {
+    return onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        const user: User = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || ''
+        };
+        callback(user);
+      } else {
+        callback(null);
+      }
+    });
+  }
+
+  // Helper method to get user-friendly error messages
+  private getErrorMessage(errorCode: string): string {
+    switch (errorCode) {
+      case 'auth/user-not-found':
+        return 'No account found with this email address';
+      case 'auth/wrong-password':
+        return 'Incorrect password';
+      case 'auth/email-already-in-use':
+        return 'An account with this email already exists';
+      case 'auth/weak-password':
+        return 'Password should be at least 6 characters';
+      case 'auth/invalid-email':
+        return 'Invalid email address';
+      case 'auth/too-many-requests':
+        return 'Too many failed attempts. Please try again later';
+      default:
+        return 'Authentication failed. Please try again';
+    }
   }
 }
 
