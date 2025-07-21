@@ -103,7 +103,7 @@ class DhanAPIService {
       const response = await this.makeRequest('/v2/fundlimit');
       
       // Check if response is successful
-      if (response && (response.status === 'success' || response.availableBalance !== undefined)) {
+      if (response && (response.status === 'success' || response.availabelBalance !== undefined || response.dhanClientId)) {
         console.log('Authentication successful');
         return true;
       } else {
