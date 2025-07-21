@@ -58,7 +58,7 @@ class DhanAPIService {
   }
 
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
-    const url = `https://api.dhan.co${endpoint}`;
+    const url = `${this.baseURL}${endpoint}`;
     
     if (!this.credentials?.apiKey || !this.credentials?.clientId) {
       throw new Error('API credentials not configured');
