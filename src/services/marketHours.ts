@@ -10,7 +10,8 @@ export class MarketHours {
     const now = new Date();
     
     // Convert to IST (UTC+5:30)
-    const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istTime = new Date(now.getTime() + istOffset);
     
     const currentHour = istTime.getUTCHours();
     const currentMinute = istTime.getUTCMinutes();

@@ -1,26 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Watchlist, WatchlistItem } from '../types';
 import { dhanAPI } from '../services/dhanAPI';
-import { Plus, Search, Star, TrendingUp, TrendingDown, X, Edit2, Trash2 } from 'lucide-react';
+import { csvParserService } from '../services/csvParser';
+import { Plus, Search, Star, TrendingUp, TrendingDown, X, Trash2, ShoppingCart } from 'lucide-react';
 
-const WatchlistManager: React.FC = () => {
+const WatchlistComponent: React.FC = () => {
   const [watchlists, setWatchlists] = useState<Watchlist[]>([
     {
       id: '1',
       name: 'My Favorites',
-      items: [
-        { symbol: 'RELIANCE', name: 'Reliance Industries Ltd', price: 1476.00, change: -0.40, changePercent: -0.03 },
-        { symbol: 'TCS', name: 'Tata Consultancy Services', price: 3189.60, change: -19.60, changePercent: -0.61 },
-      ],
-      createdAt: new Date()
-    },
-    {
-      id: '2',
-      name: 'Banking Stocks',
-      items: [
-        { symbol: 'HDFCBANK', name: 'HDFC Bank Limited', price: 1956.00, change: -30.90, changePercent: -1.56 },
-        { symbol: 'ICICIBANK', name: 'ICICI Bank Limited', price: 1426.70, change: 8.00, changePercent: 0.56 },
-      ],
+      items: [],
       createdAt: new Date()
     }
   ]);
@@ -55,7 +44,7 @@ const WatchlistManager: React.FC = () => {
   }, [searchQuery]);
 
   const createWatchlist = () => {
-    if (newWatchlistName.trim() && watchlists.length < 5) {
+    if (newWatchlistName.trim() && watchlists.length < 10) {
       const newWatchlist: Watchlist = {
         id: Date.now().toString(),
         name: newWatchlistName.trim(),
@@ -103,6 +92,12 @@ const WatchlistManager: React.FC = () => {
     setWatchlists(updatedWatchlists);
   };
 
+  const buyFromWatchlist = (symbol: string) => {
+    // Navigate to order form with pre-filled symbol
+    const event = new CustomEvent('openOrderForm', { detail: { symbol, side: 'BUY' } });
+    window.dispatchEvent(event);
+  };
+
   const currentWatchlist = watchlists.find(w => w.id === activeWatchlist);
 
   return (
@@ -121,7 +116,7 @@ const WatchlistManager: React.FC = () => {
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            disabled={watchlists.length >= 5}
+            disabled={watchlists.length >= 10}
           >
             <Plus className="w-4 h-4 mr-2" />
             New Watchlist
@@ -130,12 +125,12 @@ const WatchlistManager: React.FC = () => {
       </div>
 
       {/* Watchlist Tabs */}
-      <div className="flex space-x-2 border-b border-gray-200">
+      <div className="flex space-x-2 border-b border-gray-200 overflow-x-auto">
         {watchlists.map((watchlist) => (
           <button
             key={watchlist.id}
             onClick={() => setActiveWatchlist(watchlist.id)}
-            className={`flex items-center px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
+            className={`flex items-center px-4 py-2 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
               activeWatchlist === watchlist.id
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -189,7 +184,7 @@ const WatchlistManager: React.FC = () => {
             </button>
           </div>
           <p className="text-sm text-gray-500 mt-2">
-            You can create up to 5 watchlists. Currently: {watchlists.length}/5
+            You can create up to 10 watchlists. Currently: {watchlists.length}/10
           </p>
         </div>
       )}
@@ -319,12 +314,22 @@ const WatchlistManager: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <button
-                          onClick={() => removeFromWatchlist(item.symbol)}
-                          className="text-red-600 hover:text-red-800 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => buyFromWatchlist(item.symbol)}
+                            className="text-green-600 hover:text-green-800 transition-colors"
+                            title="Buy"
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => removeFromWatchlist(item.symbol)}
+                            className="text-red-600 hover:text-red-800 transition-colors"
+                            title="Remove"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -338,4 +343,4 @@ const WatchlistManager: React.FC = () => {
   );
 };
 
-export default WatchlistManager;
+export default WatchlistComponent;

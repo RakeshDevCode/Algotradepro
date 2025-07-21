@@ -1,13 +1,69 @@
 import { Stock, Order, Position, ApiCredentials, OrderBook, WatchlistItem } from '../types';
-import { symbolMappingService, POPULAR_STOCKS } from './symbolMapping';
+import { csvParserService } from './csvParser';
+import { webSocketService, TickerData } from './websocketService';
 import { MarketHours } from './marketHours';
 
 class DhanAPIService {
   private baseURL = '/api';
   private credentials: ApiCredentials | null = null;
+  private liveDataCache: Map<string, Stock> = new Map();
+  private orderStatusCallbacks: Map<string, (status: string, message: string) => void> = new Map();
 
   setCredentials(credentials: ApiCredentials) {
     this.credentials = credentials;
+    
+    // Initialize WebSocket connection for live data
+    if (credentials.apiKey && credentials.clientId) {
+      webSocketService.setCredentials(credentials.apiKey, credentials.clientId);
+      this.initializeLiveData();
+    }
+  }
+
+  private async initializeLiveData() {
+    try {
+      if (MarketHours.isMarketOpen()) {
+        await webSocketService.connect();
+        
+        // Subscribe to popular stocks
+        const popularSecurities = csvParserService.getPopularSecurities();
+        const instruments = popularSecurities.map(security => ({
+          exchangeSegment: security.exchangeSegment,
+          securityId: security.securityId
+        }));
+
+        if (instruments.length > 0) {
+          webSocketService.subscribeToInstruments(instruments);
+          
+          // Set up data handlers
+          popularSecurities.forEach(security => {
+            webSocketService.subscribe(security.securityId, (data: TickerData) => {
+              this.updateLiveData(security.securityId, data);
+            });
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to initialize live data:', error);
+    }
+  }
+
+  private updateLiveData(securityId: string, tickerData: TickerData) {
+    const security = csvParserService.getSecurityById(securityId);
+    if (!security) return;
+
+    const stock: Stock = {
+      symbol: security.tradingSymbol,
+      name: security.customSymbol,
+      price: tickerData.ltp,
+      change: tickerData.change,
+      changePercent: tickerData.changePercent,
+      volume: tickerData.volume,
+      high: tickerData.high,
+      low: tickerData.low,
+      open: tickerData.open
+    };
+
+    this.liveDataCache.set(securityId, stock);
   }
 
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
@@ -46,155 +102,88 @@ class DhanAPIService {
     }
   }
 
-  async getFundLimit(): Promise<any> {
-    try {
-      return await this.makeRequest('/fundlimit');
-    } catch (error) {
-      console.error('Error fetching fund limit:', error);
-      return null;
-    }
-  }
-
-  async getTrades(): Promise<any[]> {
-    try {
-      const response = await this.makeRequest('/trades');
-      return response || [];
-    } catch (error) {
-      console.error('Error fetching trades:', error);
-      return [];
-    }
-  }
-
-  async getHoldings(): Promise<Position[]> {
-    try {
-      const response = await this.makeRequest('/holdings');
-      if (response && Array.isArray(response)) {
-        return response.map((holding: any) => ({
-          symbol: holding.tradingSymbol || holding.symbol,
-          quantity: holding.quantity || 0,
-          avgPrice: holding.avgCostPrice || holding.avgPrice || 0,
-          currentPrice: holding.ltp || holding.currentPrice || 0,
-          pnl: holding.realizedPnl || holding.pnl || 0,
-          pnlPercent: holding.pnlPercent || 0
-        }));
-      }
-      return [];
-    } catch (error) {
-      console.warn('Holdings API unavailable, returning empty positions:', error);
-      return [];
-    }
-  }
-
-  async getLiveQuotes(symbols: string[]): Promise<any[]> {
-    try {
-      if (!MarketHours.isMarketOpen()) {
-        console.warn('Market is closed, cannot fetch live quotes');
-        return [];
-      }
-
-      // Get security IDs for symbols
-      const securityIds = symbols
-        .map(symbol => symbolMappingService.getSecurityId(symbol))
-        .filter(id => id !== null);
-
-      if (securityIds.length === 0) {
-        return [];
-      }
-
-      // Dhan API endpoint for live quotes
-      const response = await this.makeRequest('/marketfeed/ltp', {
-        method: 'POST',
-        body: JSON.stringify({
-          NSE_EQ: securityIds
-        })
-      });
-
-      return response?.data || [];
-    } catch (error) {
-      console.error('Error fetching live quotes:', error);
-      return [];
-    }
-  }
-
   async getMarketData(): Promise<Stock[]> {
     try {
-      // Only fetch live data during market hours
       if (!MarketHours.isMarketOpen()) {
-        console.warn('Market is closed. Showing last known prices.');
         return this.getClosedMarketData();
       }
 
-      // Get popular symbols that are available in mapping
-      const popularSymbols = symbolMappingService.getPopularSymbols().slice(0, 8);
+      // If WebSocket is connected and we have live data, use it
+      if (webSocketService.isWebSocketConnected() && this.liveDataCache.size > 0) {
+        return Array.from(this.liveDataCache.values()).slice(0, 8);
+      }
+
+      // Fallback to REST API for live quotes
+      const popularSecurities = csvParserService.getPopularSecurities().slice(0, 8);
       
-      if (!this.credentials?.apiKey) {
-        console.warn('No API credentials available');
+      if (!this.credentials?.apiKey || popularSecurities.length === 0) {
         return this.getClosedMarketData();
       }
 
-      // Fetch live quotes
-      const liveQuotes = await this.getLiveQuotes(popularSymbols);
-      
-      if (liveQuotes.length === 0) {
-        return this.getClosedMarketData();
+      try {
+        const securityIds = popularSecurities.map(s => s.securityId);
+        const response = await this.makeRequest('/marketfeed/ltp', {
+          method: 'POST',
+          body: JSON.stringify({
+            NSE_EQ: securityIds
+          })
+        });
+
+        if (response?.data && Array.isArray(response.data)) {
+          return response.data.map((quote: any) => {
+            const security = csvParserService.getSecurityById(quote.securityId?.toString());
+            if (!security) return null;
+
+            return {
+              symbol: security.tradingSymbol,
+              name: security.customSymbol,
+              price: quote.ltp || 0,
+              change: (quote.ltp || 0) - (quote.prev_close || 0),
+              changePercent: quote.prev_close ? (((quote.ltp || 0) - quote.prev_close) / quote.prev_close) * 100 : 0,
+              volume: quote.volume || 0,
+              high: quote.high || quote.ltp || 0,
+              low: quote.low || quote.ltp || 0,
+              open: quote.open || quote.ltp || 0
+            };
+          }).filter(Boolean);
+        }
+      } catch (apiError) {
+        console.warn('Live API failed, using fallback data:', apiError);
       }
 
-      // Convert live quotes to Stock format
-      return liveQuotes.map((quote: any) => {
-        const symbol = symbolMappingService.getTradingSymbol(quote.securityId) || '';
-        const securityInfo = symbolMappingService.getSecurityInfo(symbol);
-        
-        return {
-          symbol,
-          name: securityInfo?.customSymbol || symbol,
-          price: quote.ltp || 0,
-          change: (quote.ltp || 0) - (quote.prev_close || 0),
-          changePercent: quote.prev_close ? (((quote.ltp || 0) - quote.prev_close) / quote.prev_close) * 100 : 0,
-          volume: quote.volume || 0,
-          high: quote.high || quote.ltp || 0,
-          low: quote.low || quote.ltp || 0,
-          open: quote.open || quote.ltp || 0
-        };
-      }).filter(stock => stock.symbol); // Filter out invalid stocks
+      return this.getClosedMarketData();
       
     } catch (error) {
-      console.error('Error fetching live market data:', error);
+      console.error('Error fetching market data:', error);
       return this.getClosedMarketData();
     }
   }
 
   private getClosedMarketData(): Stock[] {
-    // Return static data when market is closed or API fails
-    const popularSymbols = symbolMappingService.getPopularSymbols().slice(0, 8);
+    const popularSecurities = csvParserService.getPopularSecurities().slice(0, 8);
     
-    // Base prices for popular stocks (last known closing prices)
-    const basePrices: Record<string, any> = {
-      'RELIANCE': { price: 1476.00, name: 'Reliance Industries' },
-      'TCS': { price: 3189.60, name: 'Tata Consultancy Services' },
-      'HDFCBANK': { price: 1956.00, name: 'HDFC Bank' },
-      'INFY': { price: 1456.85, name: 'Infosys' },
-      'ICICIBANK': { price: 1426.70, name: 'ICICI Bank' },
-      'BHARTIARTL': { price: 1902.00, name: 'Bharti Airtel' },
-      'ITC': { price: 422.00, name: 'ITC' },
-      'SBIN': { price: 823.00, name: 'State Bank of India' }
+    const basePrices: Record<string, number> = {
+      'RELIANCE': 1476.00,
+      'TCS': 3189.60,
+      'HDFCBANK': 1956.00,
+      'INFY': 1456.85,
+      'ICICIBANK': 1426.70,
+      'BHARTIARTL': 1902.00,
+      'ITC': 422.00,
+      'SBIN': 823.00
     };
     
-    return popularSymbols.map(symbol => {
-      const baseData = basePrices[symbol] || { price: 1000, name: symbol };
-      const securityInfo = symbolMappingService.getSecurityInfo(symbol);
-      
-      return {
-        symbol,
-        name: securityInfo?.customSymbol || baseData.name,
-        price: baseData.price,
-        change: 0, // No change when market is closed
-        changePercent: 0,
-        volume: 0,
-        high: baseData.price,
-        low: baseData.price,
-        open: baseData.price
-      };
-    });
+    return popularSecurities.map(security => ({
+      symbol: security.tradingSymbol,
+      name: security.customSymbol,
+      price: basePrices[security.tradingSymbol] || 1000,
+      change: 0,
+      changePercent: 0,
+      volume: 0,
+      high: basePrices[security.tradingSymbol] || 1000,
+      low: basePrices[security.tradingSymbol] || 1000,
+      open: basePrices[security.tradingSymbol] || 1000
+    }));
   }
 
   async placeOrder(order: Omit<Order, 'id' | 'timestamp' | 'status'>): Promise<Order> {
@@ -203,22 +192,21 @@ class DhanAPIService {
         throw new Error('API credentials not configured');
       }
 
-      // Get security ID for the symbol
-      const securityId = symbolMappingService.getSecurityId(order.symbol);
-      if (!securityId) {
-        throw new Error(`Security ID not found for symbol: ${order.symbol}`);
+      const security = csvParserService.getSecurityBySymbol(order.symbol);
+      if (!security) {
+        throw new Error(`Security not found for symbol: ${order.symbol}`);
       }
 
       const orderPayload = {
         dhanClientId: this.credentials.clientId,
         correlationId: `order_${Date.now()}`,
         transactionType: order.side,
-        exchangeSegment: "NSE_EQ",
+        exchangeSegment: security.exchangeSegment,
         productType: "CNC",
         orderType: order.type,
         validity: "DAY",
         tradingSymbol: order.symbol,
-        securityId: securityId.toString(),
+        securityId: security.securityId,
         quantity: order.quantity,
         disclosedQuantity: 0,
         price: order.price,
@@ -241,70 +229,32 @@ class DhanAPIService {
         ...order,
         id: response?.orderId || Date.now().toString(),
         timestamp: new Date(),
-        status: response?.status === 'TRANSIT' ? 'PENDING' : 'PENDING'
+        status: 'PENDING'
       };
+
+      // Notify about order placement
+      const callback = this.orderStatusCallbacks.get(newOrder.id);
+      if (callback) {
+        callback('PLACED', `Order placed successfully for ${order.symbol}`);
+      }
 
       return newOrder;
     } catch (error) {
       console.error('Error placing order:', error);
+      
+      // Notify about order failure
+      const tempId = Date.now().toString();
+      const callback = this.orderStatusCallbacks.get(tempId);
+      if (callback) {
+        callback('REJECTED', `Order failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      
       throw error;
     }
   }
 
-  async modifyOrder(orderId: string, modifications: Partial<Order>): Promise<boolean> {
-    try {
-      if (!this.credentials?.apiKey || !this.credentials?.clientId) {
-        throw new Error('API credentials not configured');
-      }
-
-      const modifyPayload = {
-        dhanClientId: this.credentials.clientId,
-        orderId: orderId,
-        orderType: modifications.type || "LIMIT",
-        legName: "ENTRY_LEG",
-        quantity: modifications.quantity,
-        price: modifications.price,
-        disclosedQuantity: 0,
-        triggerPrice: 0,
-        validity: "DAY"
-      };
-
-      await this.makeRequest(`/orders/${orderId}`, {
-        method: 'PUT',
-        body: JSON.stringify(modifyPayload)
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Error modifying order:', error);
-      return false;
-    }
-  }
-
-  async cancelOrder(orderId: string): Promise<boolean> {
-    try {
-      if (!this.credentials?.apiKey) {
-        throw new Error('API credentials not configured');
-      }
-
-      await this.makeRequest(`/orders/${orderId}`, {
-        method: 'DELETE'
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Error cancelling order:', error);
-      return false;
-    }
-  }
-
-  async getPositions(): Promise<Position[]> {
-    try {
-      return await this.getHoldings();
-    } catch (error) {
-      console.error('Error fetching positions:', error);
-      return [];
-    }
+  onOrderStatus(orderId: string, callback: (status: string, message: string) => void) {
+    this.orderStatusCallbacks.set(orderId, callback);
   }
 
   async getOrders(): Promise<Order[]> {
@@ -342,19 +292,46 @@ class DhanAPIService {
     }
   }
 
-  async getOrderBook(symbol: string): Promise<OrderBook> {
+  async getPositions(): Promise<Position[]> {
     try {
-      // Dhan API doesn't provide order book data directly
-      // You would need to use a market data provider for this
-      return this.getMockOrderBook(symbol);
+      const response = await this.makeRequest('/holdings');
+      if (response && Array.isArray(response)) {
+        return response.map((holding: any) => ({
+          symbol: holding.tradingSymbol || holding.symbol,
+          quantity: holding.quantity || 0,
+          avgPrice: holding.avgCostPrice || holding.avgPrice || 0,
+          currentPrice: holding.ltp || holding.currentPrice || 0,
+          pnl: holding.realizedPnl || holding.pnl || 0,
+          pnlPercent: holding.pnlPercent || 0
+        }));
+      }
+      return [];
     } catch (error) {
-      console.error('Error fetching order book:', error);
-      return this.getMockOrderBook(symbol);
+      console.warn('Holdings API unavailable, returning empty positions:', error);
+      return [];
     }
   }
 
-  private getMockOrderBook(symbol: string): OrderBook {
-    const basePrice = 1000; // You could fetch current price here
+  async searchSymbols(query: string): Promise<WatchlistItem[]> {
+    try {
+      const searchResults = csvParserService.searchSecurities(query, 20);
+      
+      return searchResults.map(security => ({
+        symbol: security.tradingSymbol,
+        name: security.customSymbol,
+        price: 0,
+        change: 0,
+        changePercent: 0
+      }));
+    } catch (error) {
+      console.error('Error searching symbols:', error);
+      return [];
+    }
+  }
+
+  async getOrderBook(symbol: string): Promise<OrderBook> {
+    // Mock order book for now
+    const basePrice = 1000;
     const spread = 0.25;
     
     return {
@@ -377,22 +354,10 @@ class DhanAPIService {
     };
   }
 
-  async searchSymbols(query: string): Promise<WatchlistItem[]> {
-    try {
-      // Use symbol mapping service to search
-      const searchResults = symbolMappingService.searchSymbols(query, 20);
-      
-      return searchResults.map(info => ({
-        symbol: info.tradingSymbol,
-        name: info.customSymbol,
-        price: 0, // Will be updated with live data if available
-        change: 0,
-        changePercent: 0
-      }));
-    } catch (error) {
-      console.error('Error searching symbols:', error);
-      return [];
-    }
+  disconnect() {
+    webSocketService.disconnect();
+    this.liveDataCache.clear();
+    this.orderStatusCallbacks.clear();
   }
 }
 

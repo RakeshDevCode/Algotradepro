@@ -10,7 +10,7 @@ import Dashboard from './components/Dashboard';
 import Portfolio from './components/Portfolio';
 import StrategyManager from './components/StrategyManager';
 import TradingInterface from './components/TradingInterface';
-import WatchlistManager from './components/WatchlistManager';
+import Watchlist from './components/Watchlist';
 import Settings from './components/Settings';
 import AuthModal from './components/AuthModal';
 import ProtectedRoute from './routes/ProtectedRoute';
@@ -153,11 +153,21 @@ function App() {
           }
         />
         <Route
+          path="/watchlist"
+          element={
+            <ProtectedRoute>
+              <Layout onLogout={handleLogout}>
+                <Watchlist />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/history"
           element={
             <ProtectedRoute>
               <Layout onLogout={handleLogout}>
-                <WatchlistManager />
+                <TradingInterface onOrderPlaced={handleOrderPlaced} />
               </Layout>
             </ProtectedRoute>
           }

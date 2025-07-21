@@ -7,6 +7,7 @@ import {
   Settings,
   History,
   Bot,
+  Eye,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -19,6 +20,7 @@ const links = [
   { to: '/orders', label: 'Orders', icon: TrendingUp },
   { to: '/portfolio', label: 'Portfolio', icon: Wallet },
   { to: '/strategy', label: 'Strategy', icon: Bot },
+  { to: '/watchlist', label: 'Watchlist', icon: Eye },
   { to: '/history', label: 'History', icon: History },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
