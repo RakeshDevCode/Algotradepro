@@ -171,39 +171,38 @@ class DhanAPIService {
         return null;
       }
 
-          const response = await this.makeRequest('/v2/marketfeed/ohlc', {
       if (this.credentials?.apiKey && this.credentials?.clientId) {
-      try {
+        try {
+          const response = await this.makeRequest('/v2/marketfeed/ohlc', {
+            method: 'POST',
+            body: JSON.stringify({
               NSE_EQ: [parseInt(stock.securityId)]
-          method: 'POST',
+            })
           });
-            NSE_EQ: [stock.securityId]
+          
           if (response?.status === 'success' && response?.data?.NSE_EQ?.[stock.securityId]) {
             const quote = response.data.NSE_EQ[stock.securityId];
             const prevClose = quote.ohlc?.close || quote.last_price;
             const change = quote.last_price - prevClose;
             const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
             
-
-        if (response?.data && response.data.length > 0) {
-          const quote = response.data[0];
+            const liveStock: Stock = {
+              symbol: stock.symbol,
+              name: stock.name,
               price: quote.last_price,
               change: change,
               changePercent: changePercent,
-            price: quote.ltp || stock.price,
+              volume: quote.volume || 0,
               high: quote.ohlc?.high || quote.last_price,
               low: quote.ohlc?.low || quote.last_price,
               open: quote.ohlc?.open || quote.last_price
-            high: quote.high || quote.ltp || stock.price,
-            low: quote.low || quote.ltp || stock.price,
-            open: quote.open || quote.ltp || stock.price
-          };
-          this.marketDataCache.set(symbol, liveStock);
-          return liveStock;
+            };
+            this.marketDataCache.set(symbol, liveStock);
+            return liveStock;
+          }
+        } catch (apiError) {
+          console.warn('Live price API failed for', symbol, ':', apiError);
         }
-      }
-      } catch (apiError) {
-        console.warn('Live price API failed for', symbol, ':', apiError);
       }
 
       // Fallback to base data
@@ -253,10 +252,7 @@ class DhanAPIService {
       return results;
     } catch (error) {
       console.error('Error searching symbols:', error);
-      return this.NIFTY_TOP_10.filter(stock => 
-        stock.symbol.toLowerCase().includes(query.toLowerCase()) ||
-        stock.name.toLowerCase().includes(query.toLowerCase())
-      ).map(stock => ({
+      return this.NIFTY_TOP_10.map(stock => ({
         symbol: stock.symbol,
         name: stock.name,
         price: 0,
@@ -438,7 +434,7 @@ class DhanAPIService {
     }
     
     const stock = this.NIFTY_TOP_10.find(s => s.symbol === symbol);
-    return stock?.price || 0;
+    return 0;
   }
 
   async getOrderBook(symbol: string): Promise<OrderBook> {
@@ -468,7 +464,6 @@ class DhanAPIService {
 
   disconnect() {
     webSocketService.disconnect();
-    this.liveDataCache.clear();
     this.orderStatusCallbacks.clear();
   }
 }
